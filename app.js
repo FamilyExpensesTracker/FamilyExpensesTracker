@@ -1504,27 +1504,38 @@ class ExpenseTracker {
             return;
         }
 
-        expenseList.innerHTML = expenses.map(expense => `
-            <div class="expense-item">
-                <div class="expense-info">
-                    <div class="expense-description">${expense.description}</div>
-                    <div class="expense-details">
-                        <span class="expense-detail-item expense-date">📅 ${new Date(expense.date).toLocaleDateString()}</span>
-                        <span class="expense-detail-item expense-category">📂 ${expense.category}</span>
-                        <span class="expense-detail-item expense-member">👤 ${expense.paidBy}</span>
+        // Get categories configuration for translation
+        const categories = this.getCategories();
+
+        expenseList.innerHTML = expenses.map(expense => {
+            // Get translated category name
+            const category = categories[expense.category];
+            const categoryDisplay = category ? 
+                `${category.emoji} ${category.translations[this.currentLanguage]}` : 
+                expense.category; // Fallback to stored value if category not found
+
+            return `
+                <div class="expense-item">
+                    <div class="expense-info">
+                        <div class="expense-description">${expense.description}</div>
+                        <div class="expense-details">
+                            <span class="expense-detail-item expense-date">📅 ${new Date(expense.date).toLocaleDateString()}</span>
+                            <span class="expense-detail-item expense-category">${categoryDisplay}</span>
+                            <span class="expense-detail-item expense-member">👤 ${expense.paidBy}</span>
+                        </div>
+                    </div>
+                    <div class="expense-amount">${this.formatCurrency(expense.amount)}</div>
+                    <div class="expense-actions">
+                        <button class="btn btn-edit btn-small" onclick="tracker.editExpense('${expense.id}')">
+                            ${this.t('editBtn')}
+                        </button>
+                        <button class="btn btn-danger btn-small" onclick="tracker.deleteExpense('${expense.id}')">
+                            ${this.t('deleteBtn')}
+                        </button>
                     </div>
                 </div>
-                <div class="expense-amount">${this.formatCurrency(expense.amount)}</div>
-                <div class="expense-actions">
-                    <button class="btn btn-edit btn-small" onclick="tracker.editExpense('${expense.id}')">
-                        ${this.t('editBtn')}
-                    </button>
-                    <button class="btn btn-danger btn-small" onclick="tracker.deleteExpense('${expense.id}')">
-                        ${this.t('deleteBtn')}
-                    </button>
-                </div>
-            </div>
-        `).join('');
+            `;
+        }).join('');
     }
 
     setupFilters() {
