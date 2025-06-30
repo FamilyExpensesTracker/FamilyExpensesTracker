@@ -55,19 +55,6 @@ const translations = {
         paidByPlaceholder: "Family member name",
         addExpenseBtn: "Add Expense",
         
-        // Categories
-        foodDining: "🍕 Food",
-        transportation: "🚗 Transportation",
-        shopping: "🛍️ Shopping",
-        entertainment: "🎬 Entertainment",
-        billsUtilities: "💡 Utilities",
-        healthcare: "🏥 Healthcare",
-        education: "📚 Education",
-        travel: "✈️ Travel",
-        personalCare: "💅 Personal Care",
-        homeGarden: "🏡 Housing",
-        other: "📦 Other",
-        
         // Dashboard Stats
         thisMonth: "This Month",
         thisYear: "This Year",
@@ -153,19 +140,6 @@ const translations = {
         paidByPlaceholder: "Nom du membre de la famille",
         addExpenseBtn: "Ajouter Dépense",
         
-        // Categories
-        foodDining: "🍕 Nourriture",
-        transportation: "🚗 Transport",
-        shopping: "🛍️ Shopping",
-        entertainment: "🎬 Divertissement",
-        billsUtilities: "💡 Services Publics",
-        healthcare: "🏥 Santé",
-        education: "📚 Éducation",
-        travel: "✈️ Voyage",
-        personalCare: "💅 Soins Personnels",
-        homeGarden: "🏡 Logement",
-        other: "📦 Autre",
-        
         // Dashboard Stats
         thisMonth: "Ce Mois",
         thisYear: "Cette Année",
@@ -250,19 +224,6 @@ const translations = {
         paidBy: "支払者",
         paidByPlaceholder: "家族の名前",
         addExpenseBtn: "支出を追加",
-        
-        // Categories
-        foodDining: "🍕 食費",
-        transportation: "🚗 交通費",
-        shopping: "🛍️ ショッピング",
-        entertainment: "🎬 娯楽",
-        billsUtilities: "💡 光熱費",
-        healthcare: "🏥 医療",
-        education: "📚 教育",
-        travel: "✈️ 旅行",
-        personalCare: "💅 美容・身だしなみ",
-        homeGarden: "🏡 住居",
-        other: "📦 その他",
         
         // Dashboard Stats
         thisMonth: "今月",
@@ -416,20 +377,8 @@ class ExpenseTracker {
         document.getElementById('paidBy').placeholder = this.t('paidByPlaceholder');
         document.querySelector('#expenseForm button[type="submit"]').textContent = this.t('addExpenseBtn');
         
-        // Update category options
-        const categorySelect = document.getElementById('category');
-        categorySelect.querySelector('option[value=""]').textContent = this.t('selectCategory');
-        categorySelect.querySelector('option[value="Food"]').textContent = this.t('foodDining');
-        categorySelect.querySelector('option[value="Transportation"]').textContent = this.t('transportation');
-        categorySelect.querySelector('option[value="Shopping"]').textContent = this.t('shopping');
-        categorySelect.querySelector('option[value="Entertainment"]').textContent = this.t('entertainment');
-        categorySelect.querySelector('option[value="Utilities"]').textContent = this.t('billsUtilities');
-        categorySelect.querySelector('option[value="Healthcare"]').textContent = this.t('healthcare');
-        categorySelect.querySelector('option[value="Education"]').textContent = this.t('education');
-        categorySelect.querySelector('option[value="Travel"]').textContent = this.t('travel');
-        categorySelect.querySelector('option[value="Personal Care"]').textContent = this.t('personalCare');
-        categorySelect.querySelector('option[value="Housing"]').textContent = this.t('homeGarden');
-        categorySelect.querySelector('option[value="Other"]').textContent = this.t('other');
+        // Update category options dynamically
+        this.populateCategoryDropdown();
         
         // Update dashboard stats
         document.querySelector('.stat-card:nth-child(1) h3').textContent = this.t('thisMonth');
@@ -574,6 +523,7 @@ class ExpenseTracker {
         this.setupEventListeners();
         this.setupTabs();
         this.setDefaultDate();
+        this.populateCategoryDropdown(); // Populate categories first
         this.updateDashboard();
         this.renderExpenseHistory();
         this.setupFilters();
@@ -1229,11 +1179,23 @@ class ExpenseTracker {
     }
 
     setupFilters() {
-        // Populate category filter
-        const categories = [...new Set(this.expenses.map(e => e.category))];
+        // Populate category filter with proper translations
+        const usedCategories = [...new Set(this.expenses.map(e => e.category))];
+        const allCategories = this.getCategories();
         const categoryFilter = document.getElementById('categoryFilter');
-        categoryFilter.innerHTML = `<option value="">${this.t('allCategories')}</option>` +
-            categories.map(cat => `<option value="${cat}">${cat}</option>`).join('');
+        
+        let categoryOptions = `<option value="">${this.t('allCategories')}</option>`;
+        usedCategories.forEach(categoryValue => {
+            const category = allCategories[categoryValue];
+            if (category) {
+                const displayName = `${category.emoji} ${category.translations[this.currentLanguage]}`;
+                categoryOptions += `<option value="${categoryValue}">${displayName}</option>`;
+            } else {
+                // Fallback for categories not in the configuration
+                categoryOptions += `<option value="${categoryValue}">${categoryValue}</option>`;
+            }
+        });
+        categoryFilter.innerHTML = categoryOptions;
 
         // Populate member filter
         const members = [...new Set(this.expenses.map(e => e.paidBy))];
@@ -1274,9 +1236,118 @@ class ExpenseTracker {
         this.renderExpenseHistory();
     }
 
+    // Get categories configuration
+    getCategories() {
+        return {
+            Food: {
+                value: "Food",
+                emoji: "🍕",
+                translations: {
+                    en: "Food",
+                    fr: "Nourriture", 
+                    ja: "食費"
+                }
+            },
+            Transportation: {
+                value: "Transportation",
+                emoji: "🚗",
+                translations: {
+                    en: "Transportation",
+                    fr: "Transport",
+                    ja: "交通費"
+                }
+            },
+            Shopping: {
+                value: "Shopping",
+                emoji: "🛍️",
+                translations: {
+                    en: "Shopping",
+                    fr: "Shopping",
+                    ja: "ショッピング"
+                }
+            },
+            Entertainment: {
+                value: "Entertainment",
+                emoji: "🎬",
+                translations: {
+                    en: "Entertainment",
+                    fr: "Divertissement",
+                    ja: "娯楽"
+                }
+            },
+            Utilities: {
+                value: "Utilities",
+                emoji: "💡",
+                translations: {
+                    en: "Utilities",
+                    fr: "Services Publics",
+                    ja: "光熱費"
+                }
+            },
+            Healthcare: {
+                value: "Healthcare",
+                emoji: "🏥",
+                translations: {
+                    en: "Healthcare",
+                    fr: "Santé",
+                    ja: "医療"
+                }
+            },
+            Education: {
+                value: "Education",
+                emoji: "📚",
+                translations: {
+                    en: "Education",
+                    fr: "Éducation",
+                    ja: "教育"
+                }
+            },
+            Travel: {
+                value: "Travel",
+                emoji: "✈️",
+                translations: {
+                    en: "Travel",
+                    fr: "Voyage",
+                    ja: "旅行"
+                }
+            },
+            "Personal Care": {
+                value: "Personal Care",
+                emoji: "💅",
+                translations: {
+                    en: "Personal Care",
+                    fr: "Soins Personnels",
+                    ja: "美容・身だしなみ"
+                }
+            },
+            Housing: {
+                value: "Housing",
+                emoji: "🏡",
+                translations: {
+                    en: "Housing",
+                    fr: "Logement",
+                    ja: "住居"
+                }
+            },  
+            Other: {
+                value: "Other",
+                emoji: "📦",
+                translations: {
+                    en: "Other",
+                    fr: "Autre",
+                    ja: "その他"
+                }
+            }
+        };
+    }
+
     exportData() {
+        // Define the categories available in the app
+        const categories = this.getCategories();
+
         const data = {
             expenses: this.expenses,
+            categories: categories,
             language: this.currentLanguage,
             currency: this.currentCurrency,
             exportDate: new Date().toISOString(),
@@ -1655,6 +1726,28 @@ class ExpenseTracker {
         return this.expenses.filter(expense => {
             const expenseDate = new Date(expense.date);
             return expenseDate >= cutoffDate;
+        });
+    }
+
+    // Populate category dropdown dynamically
+    populateCategoryDropdown() {
+        const categorySelect = document.getElementById('category');
+        const categories = this.getCategories();
+        
+        // Clear existing options except the first one (Select a category)
+        const firstOption = categorySelect.querySelector('option[value=""]');
+        categorySelect.innerHTML = '';
+        categorySelect.appendChild(firstOption);
+        
+        // Update the placeholder text
+        firstOption.textContent = this.t('selectCategory');
+        
+        // Add categories from the configuration
+        Object.values(categories).forEach(category => {
+            const option = document.createElement('option');
+            option.value = category.value;
+            option.textContent = `${category.emoji} ${category.translations[this.currentLanguage]}`;
+            categorySelect.appendChild(option);
         });
     }
 }
