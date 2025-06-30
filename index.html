@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Family Expense Tracker</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flag-icon-css/7.2.3/css/flag-icons.min.css">
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/date-fns@2.29.3/index.min.js"></script>
+</head>
+<body data-lang="en">
+    <div class="container">
+        <header class="header">
+            <h1>🏠 Family Expense Tracker</h1>
+            <div class="header-actions">
+                <button id="exportBtn" class="btn btn-secondary" title="Export Data">📤</button>
+                <button id="importBtn" class="btn btn-secondary" title="Import Data">📥</button>
+                <button id="settingsBtn" class="btn btn-icon" title="Settings">⚙️</button>
+                <input type="file" id="importFile" accept=".json" style="display: none;">
+            </div>
+        </header>
+
+        <nav class="tabs">
+            <button class="tab-btn active" data-tab="add-expense">Add Expense</button>
+            <button class="tab-btn" data-tab="dashboard">Dashboard</button>
+            <button class="tab-btn" data-tab="history">History</button>
+        </nav>
+
+        <!-- Add Expense Tab -->
+        <div id="add-expense" class="tab-content active">
+            <div class="card">
+                <h2>Add New Expense</h2>
+                <form id="expenseForm">
+                    <div class="form-group">
+                        <label for="amount">Amount</label>
+                        <input type="number" id="amount" name="amount" step="0.01" min="0" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="description">Description</label>
+                        <input type="text" id="description" name="description" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="category">Category</label>
+                        <select id="category" name="category" required>
+                            <option value="">Select a category</option>
+                            <option value="Food">🍕 Food</option>
+                            <option value="Transportation">🚗 Transportation</option>
+                            <option value="Shopping">🛍️ Shopping</option>
+                            <option value="Entertainment">🎬 Entertainment</option>
+                            <option value="Utilities">💡 Utilities</option>
+                            <option value="Healthcare">🏥 Healthcare</option>
+                            <option value="Education">📚 Education</option>
+                            <option value="Travel">✈️ Travel</option>
+                            <option value="Personal Care">💅 Personal Care</option>
+                            <option value="Housing">🏡 Housing</option>
+                            <option value="Other">📦 Other</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="date">Date</label>
+                        <input type="date" id="date" name="date" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="paidBy">Paid By</label>
+                        <input type="text" id="paidBy" name="paidBy" placeholder="Family member name" required>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">Add Expense</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Dashboard Tab -->
+        <div id="dashboard" class="tab-content">
+            <div class="dashboard-stats">
+                <div class="stat-card">
+                    <h3>This Month</h3>
+                    <div class="stat-value" id="monthlyTotal">$0.00</div>
+                </div>
+                <div class="stat-card">
+                    <h3>This Year</h3>
+                    <div class="stat-value" id="yearlyTotal">$0.00</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Total Expenses</h3>
+                    <div class="stat-value" id="totalExpenses">0</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Average/Month</h3>
+                    <div class="stat-value" id="avgMonthly">$0.00</div>
+                </div>
+            </div>
+
+            <div class="chart-container">
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <h3>Expenses by Category</h3>
+                        <div class="chart-controls">
+                            <div class="period-selector">
+                                <button class="period-btn" data-period="7">7D</button>
+                                <button class="period-btn active" data-period="30">30D</button>
+                                <button class="period-btn" data-period="90">3M</button>
+                                <button class="period-btn" data-period="180">6M</button>
+                                <button class="period-btn" data-period="365">1Y</button>
+                                <button class="period-btn" data-period="all">All</button>
+                                <button class="period-btn custom-btn" data-period="custom">Custom</button>
+                            </div>
+                            <div class="custom-range-controls" id="categoryCustomRange" style="display: none;">
+                                <div class="date-inputs">
+                                    <div class="date-input-group">
+                                        <label for="categoryFromDate">From</label>
+                                        <input type="date" id="categoryFromDate" class="date-input">
+                                    </div>
+                                    <div class="date-input-group">
+                                        <label for="categoryToDate">To</label>
+                                        <input type="date" id="categoryToDate" class="date-input">
+                                    </div>
+                                    <button class="apply-range-btn" data-chart="category">Apply</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <canvas id="categoryChart"></canvas>
+                </div>
+                <div class="chart-card">
+                    <h3>Monthly Spending Trend</h3>
+                    <canvas id="trendChart"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-container">
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <h3>Spending by Family Member</h3>
+                        <div class="chart-controls">
+                            <div class="period-selector">
+                                <button class="period-btn member-period-btn" data-period="7">7D</button>
+                                <button class="period-btn member-period-btn active" data-period="30">30D</button>
+                                <button class="period-btn member-period-btn" data-period="90">3M</button>
+                                <button class="period-btn member-period-btn" data-period="180">6M</button>
+                                <button class="period-btn member-period-btn" data-period="365">1Y</button>
+                                <button class="period-btn member-period-btn" data-period="all">All</button>
+                                <button class="period-btn member-period-btn custom-btn" data-period="custom">Custom</button>
+                            </div>
+                            <div class="custom-range-controls" id="memberCustomRange" style="display: none;">
+                                <div class="date-inputs">
+                                    <div class="date-input-group">
+                                        <label for="memberFromDate">From</label>
+                                        <input type="date" id="memberFromDate" class="date-input">
+                                    </div>
+                                    <div class="date-input-group">
+                                        <label for="memberToDate">To</label>
+                                        <input type="date" id="memberToDate" class="date-input">
+                                    </div>
+                                    <button class="apply-range-btn" data-chart="member">Apply</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <canvas id="memberChart"></canvas>
+                </div>
+                <div class="chart-card">
+                    <h3>Daily Spending (Last 30 Days)</h3>
+                    <canvas id="dailyChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- History Tab -->
+        <div id="history" class="tab-content">
+            <div class="card">
+                <div class="history-header">
+                    <h2>Expense History</h2>
+                    <div class="filter-controls">
+                        <select id="categoryFilter">
+                            <option value="">All Categories</option>
+                        </select>
+                        <select id="memberFilter">
+                            <option value="">All Members</option>
+                        </select>
+                        <input type="month" id="monthFilter">
+                        <button id="clearFilters" class="btn btn-secondary">Clear Filters</button>
+                    </div>
+                </div>
+                <div class="history-total">
+                    <div class="total-display">
+                        <span class="total-label">Total Amount:</span>
+                        <span class="total-value" id="historyTotal">$0.00</span>
+                    </div>
+                </div>
+                <div class="expense-list" id="expenseList">
+                    <!-- Expenses will be populated here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast notification -->
+    <div id="toast" class="toast"></div>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>⚙️ Settings</h2>
+                <button class="modal-close" id="closeSettings">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="settings-section">
+                    <h3>🌐 Language</h3>
+                    <div class="custom-select language-selector-wrapper">
+                        <div class="custom-select-trigger" id="languageSelector">
+                            <span class="selected-option">
+                                <span class="fi fi-us"></span>
+                                <span class="option-text">English</span>
+                            </span>
+                            <span class="arrow">▼</span>
+                        </div>
+                        <div class="custom-options">
+                            <div class="custom-option selected" data-value="en">
+                                <span class="fi fi-us"></span>
+                                <span class="option-text">English</span>
+                            </div>
+                            <div class="custom-option" data-value="fr">
+                                <span class="fi fi-fr"></span>
+                                <span class="option-text">Français</span>
+                            </div>
+                            <div class="custom-option" data-value="ja">
+                                <span class="fi fi-jp"></span>
+                                <span class="option-text">日本語</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="settings-section">
+                    <h3>💰 Currency</h3>
+                    <select id="currencySelector" class="currency-selector">
+                        <option value="">Select Currency</option>
+                        <option value="USD">$ USD</option>
+                        <option value="EUR">€ EUR</option>
+                        <option value="JPY">¥ JPY</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="saveSettings" class="btn btn-primary">Save Settings</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirmation Modal -->
+    <div id="confirmModal" class="modal">
+        <div class="modal-content confirm-modal">
+            <div class="modal-header">
+                <h2>🗑️ Confirm Delete</h2>
+                <button class="modal-close" id="closeConfirm">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="confirm-message">
+                    <div class="confirm-icon">⚠️</div>
+                    <p id="confirmMessage">Are you sure you want to delete this expense?</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="cancelDelete" class="btn btn-secondary">Cancel</button>
+                <button id="confirmDelete" class="btn btn-danger">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
