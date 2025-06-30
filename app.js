@@ -138,7 +138,12 @@ const translations = {
         decryptingData: "Decrypting data...",
         incorrectPassword: "Incorrect password or corrupted file",
         fileEncrypted: "This file is encrypted. Please enter the password to decrypt it:",
-        importCancelled: "Import cancelled"
+        importCancelled: "Import cancelled",
+        editExpense: "Edit Expense",
+        editBtn: "✏️ Edit",
+        saveChanges: "Save Changes",
+        expenseUpdated: "Expense updated successfully!",
+        editCancelled: "Edit cancelled",
     },
     fr: {
         // Header
@@ -248,7 +253,12 @@ const translations = {
         decryptingData: "Déchiffrement des données...",
         incorrectPassword: "Mot de passe incorrect ou fichier corrompu",
         fileEncrypted: "Ce fichier est chiffré. Veuillez entrer le mot de passe pour le déchiffrer:",
-        importCancelled: "Importation annulée"
+        importCancelled: "Importation annulée",
+        editExpense: "Modifier la Dépense",
+        editBtn: "✏️ Modifier",
+        saveChanges: "Enregistrer les Modifications",
+        expenseUpdated: "Dépense mise à jour avec succès!",
+        editCancelled: "Modification annulée",
     },
     ja: {
         // Header
@@ -358,7 +368,12 @@ const translations = {
         decryptingData: "データを復号化中...",
         incorrectPassword: "パスワードが間違っているかファイルが破損しています",
         fileEncrypted: "このファイルは暗号化されています。復号化するためのパスワードを入力してください：",
-        importCancelled: "インポートがキャンセルされました"
+        importCancelled: "インポートがキャンセルされました",
+        editExpense: "支出を編集",
+        editBtn: "✏️ 編集",
+        saveChanges: "変更を保存",
+        expenseUpdated: "支出が正常に更新されました！",
+        editCancelled: "編集がキャンセルされました",
     }
 };
 
@@ -422,6 +437,187 @@ class ExpenseTracker {
         }
     }
 
+    editExpense(id) {
+        const expense = this.expenses.find(e => e.id === id);
+        if (!expense) {
+            this.showToast('Expense not found', 'error');
+            return;
+        }
+        
+        this.showEditModal(expense);
+    }
+
+    showEditModal(expense) {
+        const modal = document.getElementById('editModal');
+        
+        // Populate form with expense data
+        document.getElementById('editAmount').value = expense.amount;
+        document.getElementById('editDescription').value = expense.description;
+        document.getElementById('editDate').value = expense.date;
+        document.getElementById('editPaidBy').value = expense.paidBy;
+        
+        // Populate category dropdown and set selected value
+        this.populateEditCategoryDropdown();
+        document.getElementById('editCategory').value = expense.category;
+        
+        // Store the expense ID for saving
+        modal.dataset.expenseId = expense.id;
+        
+        // Show modal
+        modal.classList.add('show');
+        document.body.style.overflow = 'hidden';
+        
+        // Focus on first input
+        setTimeout(() => document.getElementById('editAmount').focus(), 100);
+    }
+
+    hideEditModal() {
+        const modal = document.getElementById('editModal');
+        modal.classList.remove('show');
+        document.body.style.overflow = '';
+        delete modal.dataset.expenseId;
+    }
+
+    initializeEditModal() {
+        const modal = document.getElementById('editModal');
+        const closeBtn = document.getElementById('closeEdit');
+        const cancelBtn = document.getElementById('cancelEdit');
+        const saveBtn = document.getElementById('saveEdit');
+        const form = document.getElementById('editExpenseForm');
+
+        // Close modal handlers
+        const closeModal = () => {
+            this.hideEditModal();
+            this.showToast(this.t('editCancelled'), 'info');
+        };
+
+        closeBtn.addEventListener('click', closeModal);
+        cancelBtn.addEventListener('click', closeModal);
+        
+        // Close modal when clicking outside
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                closeModal();
+            }
+        });
+
+        // Handle keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && modal.classList.contains('show')) {
+                closeModal();
+            }
+        });
+
+        // Save changes handler
+        const saveChanges = (e) => {
+            e.preventDefault();
+            this.saveExpenseChanges();
+        };
+
+        saveBtn.addEventListener('click', saveChanges);
+        form.addEventListener('submit', saveChanges);
+    }
+
+    saveExpenseChanges() {
+        const modal = document.getElementById('editModal');
+        const expenseId = modal.dataset.expenseId;
+        
+        if (!expenseId) {
+            this.showToast('Error: Expense ID not found', 'error');
+            return;
+        }
+
+        const form = document.getElementById('editExpenseForm');
+        const formData = new FormData(form);
+        
+        // Validate required fields
+        const amount = parseFloat(formData.get('amount'));
+        const description = formData.get('description').trim();
+        const category = formData.get('category');
+        const date = formData.get('date');
+        const paidBy = formData.get('paidBy').trim();
+
+        if (!amount || amount <= 0) {
+            this.showToast('Please enter a valid amount', 'error');
+            return;
+        }
+
+        if (!description) {
+            this.showToast('Please enter a description', 'error');
+            return;
+        }
+
+        if (!category) {
+            this.showToast('Please select a category', 'error');
+            return;
+        }
+
+        if (!date) {
+            this.showToast('Please select a date', 'error');
+            return;
+        }
+
+        if (!paidBy) {
+            this.showToast('Please enter who paid', 'error');
+            return;
+        }
+
+        // Find and update the expense
+        const expenseIndex = this.expenses.findIndex(e => e.id === expenseId);
+        if (expenseIndex === -1) {
+            this.showToast('Expense not found', 'error');
+            return;
+        }
+
+        // Update the expense while preserving the original ID and timestamp
+        const originalExpense = this.expenses[expenseIndex];
+        this.expenses[expenseIndex] = {
+            ...originalExpense,
+            amount: amount,
+            description: description,
+            category: category,
+            date: date,
+            paidBy: paidBy,
+            lastModified: new Date().toISOString()
+        };
+
+        // Save to localStorage
+        this.saveExpenses();
+        
+        // Update UI
+        this.showToast(this.t('expenseUpdated'));
+        this.hideEditModal();
+        
+        // Refresh displays
+        if (this.currentTab === 'dashboard') {
+            this.updateDashboard();
+        }
+        this.renderExpenseHistory();
+        this.setupFilters();
+    }
+
+    populateEditCategoryDropdown() {
+        const categorySelect = document.getElementById('editCategory');
+        const categories = this.getCategories();
+        
+        // Clear existing options
+        categorySelect.innerHTML = '';
+        
+        // Add placeholder option
+        const placeholderOption = document.createElement('option');
+        placeholderOption.value = '';
+        placeholderOption.textContent = this.t('selectCategory');
+        categorySelect.appendChild(placeholderOption);
+        
+        // Add categories from the configuration
+        Object.values(categories).forEach(category => {
+            const option = document.createElement('option');
+            option.value = category.value;
+            option.textContent = `${category.emoji} ${category.translations[this.currentLanguage]}`;
+            categorySelect.appendChild(option);
+        });
+    }
+
     updateAllTexts() {
         // Update header
         document.querySelector('.header h1').textContent = this.t('appTitle');
@@ -452,6 +648,9 @@ class ExpenseTracker {
         document.querySelector('label[for="paidBy"]').textContent = this.t('paidBy');
         document.getElementById('paidBy').placeholder = this.t('paidByPlaceholder');
         document.querySelector('#expenseForm button[type="submit"]').textContent = this.t('addExpenseBtn');
+        
+        // Update edit modal texts
+        this.updateEditModalTexts();
         
         // Update category options dynamically
         this.populateCategoryDropdown();
@@ -497,7 +696,7 @@ class ExpenseTracker {
             memberFilter.querySelector('option[value=""]').textContent = this.t('allMembers');
         }
         
-        // Re-render expense history to update delete buttons
+        // Re-render expense history to update edit/delete buttons
         this.renderExpenseHistory();
         
         // Update filters
@@ -505,6 +704,63 @@ class ExpenseTracker {
         
         // Update period selector buttons
         this.updatePeriodSelectorTexts();
+    }
+
+    updateEditModalTexts() {
+        // Update modal header
+        const editTitle = document.querySelector('#editModal .modal-header h2');
+        if (editTitle) {
+            editTitle.textContent = `✏️ ${this.t('editExpense')}`;
+        }
+
+        // Update form labels
+        const editAmountLabel = document.querySelector('label[for="editAmount"]');
+        if (editAmountLabel) {
+            const currency = currencies[this.currentCurrency];
+            editAmountLabel.textContent = `${this.t('amount')} (${currency.code})`;
+        }
+
+        const editDescriptionLabel = document.querySelector('label[for="editDescription"]');
+        if (editDescriptionLabel) {
+            editDescriptionLabel.textContent = this.t('description');
+        }
+
+        const editCategoryLabel = document.querySelector('label[for="editCategory"]');
+        if (editCategoryLabel) {
+            editCategoryLabel.textContent = this.t('category');
+        }
+
+        const editDateLabel = document.querySelector('label[for="editDate"]');
+        if (editDateLabel) {
+            editDateLabel.textContent = this.t('date');
+        }
+
+        const editPaidByLabel = document.querySelector('label[for="editPaidBy"]');
+        if (editPaidByLabel) {
+            editPaidByLabel.textContent = this.t('paidBy');
+        }
+
+        // Update placeholder
+        const editPaidByInput = document.getElementById('editPaidBy');
+        if (editPaidByInput) {
+            editPaidByInput.placeholder = this.t('paidByPlaceholder');
+        }
+
+        // Update buttons
+        const cancelBtn = document.getElementById('cancelEdit');
+        if (cancelBtn) {
+            cancelBtn.textContent = this.t('cancel');
+        }
+
+        const saveBtn = document.getElementById('saveEdit');
+        if (saveBtn) {
+            saveBtn.textContent = this.t('saveChanges');
+        }
+
+        // Update category dropdown in edit modal if it exists and is populated
+        if (document.getElementById('editCategory').children.length > 0) {
+            this.populateEditCategoryDropdown();
+        }
     }
 
     updateChartLabels() {
@@ -614,6 +870,7 @@ class ExpenseTracker {
         this.initializeCurrencySelector();
         this.updateAllTexts(); // Apply translations on initial load
         this.initializeSettingsModal();
+        this.initializeEditModal();
         
         // Clean up on page unload
         window.addEventListener('beforeunload', () => {
@@ -1259,6 +1516,9 @@ class ExpenseTracker {
                 </div>
                 <div class="expense-amount">${this.formatCurrency(expense.amount)}</div>
                 <div class="expense-actions">
+                    <button class="btn btn-edit btn-small" onclick="tracker.editExpense('${expense.id}')">
+                        ${this.t('editBtn')}
+                    </button>
                     <button class="btn btn-danger btn-small" onclick="tracker.deleteExpense('${expense.id}')">
                         ${this.t('deleteBtn')}
                     </button>
