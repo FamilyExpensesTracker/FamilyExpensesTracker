@@ -954,7 +954,19 @@ body {
         align-items: stretch;
     }
     
+    .history-controls {
+        align-items: stretch;
+    }
+    
     .filter-controls {
+        justify-content: center;
+    }
+    
+    .sort-controls {
+        justify-content: center;
+    }
+    
+    .sort-buttons {
         justify-content: center;
     }
     
@@ -1327,10 +1339,74 @@ body {
     gap: 20px;
 }
 
+.history-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    align-items: flex-end;
+}
+
 .filter-controls {
     display: flex;
     gap: 15px;
     flex-wrap: wrap;
+}
+
+.sort-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.sort-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #2c3e50;
+    white-space: nowrap;
+}
+
+.sort-buttons {
+    display: flex;
+    gap: 5px;
+    background: rgba(255, 255, 255, 0.8);
+    border-radius: 12px;
+    padding: 4px;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.sort-btn {
+    padding: 8px 12px;
+    border: none;
+    background: transparent;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    color: #64748b;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    position: relative;
+    min-width: 50px;
+    justify-content: center;
+}
+
+.sort-btn:hover {
+    background: rgba(102, 126, 234, 0.1);
+    color: #667eea;
+    transform: translateY(-1px);
+}
+
+.sort-btn.active {
+    background: #667eea;
+    color: white;
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+.sort-btn:active {
+    transform: translateY(0);
 }
 
 .filter-controls select,

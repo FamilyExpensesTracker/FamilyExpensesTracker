@@ -85,6 +85,11 @@ const translations = {
         allCategories: "All Categories",
         allMembers: "All Members",
         clearFilters: "Clear Filters",
+        sortBy: "Sort by:",
+        sortDateDesc: "Date (Newest First)",
+        sortDateAsc: "Date (Oldest First)", 
+        sortAmountDesc: "Amount (Highest First)",
+        sortAmountAsc: "Amount (Lowest First)",
         deleteBtn: "🗑️ Delete",
         
         // Messages
@@ -170,6 +175,11 @@ const translations = {
         allCategories: "Toutes Catégories",
         allMembers: "Tous Membres",
         clearFilters: "Effacer Filtres",
+        sortBy: "Trier par:",
+        sortDateDesc: "Date (Le Plus Récent)",
+        sortDateAsc: "Date (Le Plus Ancien)",
+        sortAmountDesc: "Montant (Le Plus Élevé)",
+        sortAmountAsc: "Montant (Le Plus Bas)",
         deleteBtn: "🗑️ Supprimer",
         
         // Messages
@@ -255,6 +265,11 @@ const translations = {
         allCategories: "全カテゴリー",
         allMembers: "全メンバー",
         clearFilters: "フィルターをクリア",
+        sortBy: "並び替え:",
+        sortDateDesc: "日付 (新しい順)",
+        sortDateAsc: "日付 (古い順)",
+        sortAmountDesc: "金額 (高い順)",
+        sortAmountAsc: "金額 (安い順)",
         deleteBtn: "🗑️ 削除",
         
         // Messages
@@ -307,6 +322,7 @@ class ExpenseTracker {
         this.selectedMemberPeriod = '30'; // Default to 30 days for member chart
         this.customDateRange = { from: null, to: null };
         this.customMemberDateRange = { from: null, to: null };
+        this.currentSort = { field: 'date', order: 'desc' }; // Default sort: newest first
         this.init();
     }
 
@@ -396,6 +412,13 @@ class ExpenseTracker {
         document.querySelector('#history h2').textContent = this.t('expenseHistory');
         document.getElementById('clearFilters').textContent = this.t('clearFilters');
         document.querySelector('.total-label').textContent = this.t('totalAmount') + ':';
+        
+        // Update sort controls
+        document.querySelector('.sort-label').textContent = this.t('sortBy');
+        document.getElementById('sortDateDesc').title = this.t('sortDateDesc');
+        document.getElementById('sortDateAsc').title = this.t('sortDateAsc');
+        document.getElementById('sortAmountDesc').title = this.t('sortAmountDesc');
+        document.getElementById('sortAmountAsc').title = this.t('sortAmountAsc');
         
         // Update filter placeholders
         const categoryFilter = document.getElementById('categoryFilter');
@@ -634,6 +657,11 @@ class ExpenseTracker {
         document.getElementById('categoryFilter').addEventListener('change', () => this.applyFilters());
         document.getElementById('memberFilter').addEventListener('change', () => this.applyFilters());
         document.getElementById('monthFilter').addEventListener('change', () => this.applyFilters());
+        
+        // Sort controls
+        document.querySelectorAll('.sort-btn').forEach(btn => {
+            btn.addEventListener('click', () => this.handleSort(btn));
+        });
         
         // Currency selector
         document.getElementById('currencySelector').addEventListener('change', (e) => {
@@ -1143,7 +1171,8 @@ class ExpenseTracker {
     renderExpenseHistory(filteredExpenses = null) {
         const expenseList = document.getElementById('expenseList');
         const historyTotal = document.getElementById('historyTotal');
-        const expenses = filteredExpenses || [...this.expenses].reverse(); // Show newest first
+        // Use filtered expenses if provided, otherwise apply current sort to all expenses
+        const expenses = filteredExpenses || this.sortExpenses(this.expenses);
 
         // Calculate total amount for displayed expenses
         const totalAmount = expenses.reduce((sum, expense) => sum + expense.amount, 0);
@@ -1202,6 +1231,20 @@ class ExpenseTracker {
         const memberFilter = document.getElementById('memberFilter');
         memberFilter.innerHTML = `<option value="">${this.t('allMembers')}</option>` +
             members.map(member => `<option value="${member}">${member}</option>`).join('');
+            
+        // Ensure sort controls are properly initialized
+        this.initializeSortControls();
+    }
+    
+    initializeSortControls() {
+        // Reset all sort buttons
+        document.querySelectorAll('.sort-btn').forEach(btn => btn.classList.remove('active'));
+        
+        // Set the active button based on current sort state
+        const activeButton = document.querySelector(`[data-sort="${this.currentSort.field}"][data-order="${this.currentSort.order}"]`);
+        if (activeButton) {
+            activeButton.classList.add('active');
+        }
     }
 
     applyFilters() {
@@ -1226,13 +1269,22 @@ class ExpenseTracker {
             });
         }
 
-        this.renderExpenseHistory(filteredExpenses);
+        // Apply current sorting
+        const sortedExpenses = this.sortExpenses(filteredExpenses);
+
+        this.renderExpenseHistory(sortedExpenses);
     }
 
     clearFilters() {
         document.getElementById('categoryFilter').value = '';
         document.getElementById('memberFilter').value = '';
         document.getElementById('monthFilter').value = '';
+        
+        // Reset sort to default (date descending)
+        this.currentSort = { field: 'date', order: 'desc' };
+        document.querySelectorAll('.sort-btn').forEach(btn => btn.classList.remove('active'));
+        document.getElementById('sortDateDesc').classList.add('active');
+        
         this.renderExpenseHistory();
     }
 
@@ -1748,6 +1800,38 @@ class ExpenseTracker {
             option.value = category.value;
             option.textContent = `${category.emoji} ${category.translations[this.currentLanguage]}`;
             categorySelect.appendChild(option);
+        });
+    }
+
+    handleSort(button) {
+        const sortField = button.dataset.sort;
+        const sortOrder = button.dataset.order;
+        
+        // Update current sort state
+        this.currentSort = { field: sortField, order: sortOrder };
+        
+        // Update button states
+        document.querySelectorAll('.sort-btn').forEach(btn => btn.classList.remove('active'));
+        button.classList.add('active');
+        
+        // Apply current filters with new sort
+        this.applyFilters();
+    }
+
+    sortExpenses(expenses) {
+        return [...expenses].sort((a, b) => {
+            let comparison = 0;
+            
+            if (this.currentSort.field === 'date') {
+                const dateA = new Date(a.date);
+                const dateB = new Date(b.date);
+                comparison = dateA - dateB;
+            } else if (this.currentSort.field === 'amount') {
+                comparison = a.amount - b.amount;
+            }
+            
+            // Reverse for descending order
+            return this.currentSort.order === 'desc' ? -comparison : comparison;
         });
     }
 }
