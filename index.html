@@ -168,14 +168,13 @@
                     <h2>Expense History</h2>
                     <div class="history-controls">
                         <div class="filter-controls">
-                            <select id="categoryFilter">
-                                <option value="">All Categories</option>
-                            </select>
-                            <select id="memberFilter">
-                                <option value="">All Members</option>
-                            </select>
-                            <input type="month" id="monthFilter">
-                            <button id="clearFilters" class="btn btn-secondary">Clear Filters</button>
+                            <select id="categoryFilter"></select>
+                            <select id="memberFilter"></select>
+                            <div class="date-filter-group">
+                                <input type="date" id="historyStartDate" class="date-input">
+                                <input type="date" id="historyEndDate" class="date-input">
+                            </div>
+                            <button id="clearFilters" class="btn btn-secondary"></button>
                         </div>
                         <div class="sort-controls">
                             <label class="sort-label" data-translate="sortBy">Sort by:</label>

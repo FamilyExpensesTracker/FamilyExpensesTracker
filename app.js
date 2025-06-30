@@ -973,8 +973,9 @@ class ExpenseTracker {
         document.getElementById('clearFilters').addEventListener('click', () => this.clearFilters());
         document.getElementById('categoryFilter').addEventListener('change', () => this.applyFilters());
         document.getElementById('memberFilter').addEventListener('change', () => this.applyFilters());
-        document.getElementById('monthFilter').addEventListener('change', () => this.applyFilters());
-        
+        document.getElementById('historyStartDate').addEventListener('change', () => this.applyFilters());
+        document.getElementById('historyEndDate').addEventListener('change', () => this.applyFilters());
+
         // Sort controls
         document.querySelectorAll('.sort-btn').forEach(btn => {
             btn.addEventListener('click', () => this.handleSort(btn));
@@ -1581,7 +1582,8 @@ class ExpenseTracker {
     applyFilters() {
         const categoryFilter = document.getElementById('categoryFilter').value;
         const memberFilter = document.getElementById('memberFilter').value;
-        const monthFilter = document.getElementById('monthFilter').value;
+        const startDate = document.getElementById('historyStartDate').value;
+        const endDate = document.getElementById('historyEndDate').value;
 
         let filteredExpenses = this.expenses;
 
@@ -1593,11 +1595,12 @@ class ExpenseTracker {
             filteredExpenses = filteredExpenses.filter(e => e.paidBy === memberFilter);
         }
 
-        if (monthFilter) {
-            filteredExpenses = filteredExpenses.filter(e => {
-                const expenseMonth = e.date.substring(0, 7); // YYYY-MM format
-                return expenseMonth === monthFilter;
-            });
+        if (startDate) {
+            filteredExpenses = filteredExpenses.filter(e => new Date(e.date) >= new Date(startDate));
+        }
+
+        if (endDate) {
+            filteredExpenses = filteredExpenses.filter(e => new Date(e.date) <= new Date(endDate));
         }
 
         // Apply current sorting
@@ -1609,7 +1612,8 @@ class ExpenseTracker {
     clearFilters() {
         document.getElementById('categoryFilter').value = '';
         document.getElementById('memberFilter').value = '';
-        document.getElementById('monthFilter').value = '';
+        document.getElementById('historyStartDate').value = '';
+        document.getElementById('historyEndDate').value = '';
         
         // Reset sort to default (date descending)
         this.currentSort = { field: 'date', order: 'desc' };
