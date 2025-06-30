@@ -10,7 +10,7 @@ A modern, multilingual family expense tracking web application with enhanced das
 
 ## 🌐 Demo
 
-**[Try the Live Demo](https://familyexpensestracker.github.io/FamilyExpensesTracker/)**
+**[Try the Live Demo](https://familyexpensestracker.github.io/)**
 
 ## ✨ Features
 
@@ -52,6 +52,7 @@ The dashboard now supports flexible date filtering for detailed expense analysis
 - **Expense History**: Complete list of all expenses with filtering options
 - **Local Storage**: All data is stored in your browser - no server required
 - **Import/Export**: JSON-based data backup and restore functionality with cross-app compatibility
+- **🔐 Encrypted Export**: Optional password-based AES-256 encryption for sensitive data
 - **Smart Filters**: Filter expenses by category, family member, or month
 - **Confirmation Dialogs**: Safe expense deletion with confirmation prompts
 
@@ -66,7 +67,7 @@ The dashboard now supports flexible date filtering for detailed expense analysis
 ## 🚀 Getting Started
 
 ### Option 1: Use Online (Recommended)
-Simply visit the [live demo](https://familyexpensestracker.github.io/FamilyExpensesTracker/) and start tracking your expenses immediately!
+Simply visit the [live demo](https://familyexpensestracker.github.io/) and start tracking your expenses immediately!
 
 ### Option 2: Download and Run Locally
 1. **Download the Source Code**:
@@ -125,19 +126,66 @@ Simply visit the [live demo](https://familyexpensestracker.github.io/FamilyExpen
 
 ### Data Management
 
+#### 🔐 Data Encryption & Security
+
+The Family Expense Tracker now supports **password-based encryption** for your exported data, ensuring maximum privacy and security of your financial information.
+
+**Encryption Features:**
+- **AES-GCM Encryption**: Industry-standard 256-bit AES encryption in GCM mode
+- **PBKDF2 Key Derivation**: Uses PBKDF2-SHA256 with 100,000 iterations for secure key generation
+- **Web Crypto API**: Built on native browser cryptography - no external dependencies
+- **Password Strength Validation**: Real-time feedback on password strength
+- **Secure Random Generation**: Cryptographically secure salt and IV generation
+
 #### Exporting Your Data
+
+**🔓 Plain Text Export (Default):**
 1. Click the **📤** export button in the header
-2. A JSON file will be downloaded with all your expense data, settings, and metadata
-3. Keep this file as a backup of your financial data
+2. Select **"Plain Text (No Encryption)"**
+3. Click **"Export"**
+4. A readable JSON file will be downloaded with all your data
+
+**🔐 Encrypted Export (Recommended for Sensitive Data):**
+1. Click the **📤** export button in the header
+2. Select **"Encrypted (Password Protected)"**
+3. Enter a strong password (minimum 8 characters)
+4. Confirm the password
+5. Use the password strength indicator to ensure security
+6. Click **"Export"**
+7. An encrypted JSON file will be downloaded
+
+**Password Requirements:**
+- Minimum 8 characters
+- Recommended: Mix of uppercase, lowercase, numbers, and special characters
+- The stronger your password, the more secure your data
 
 #### Importing Data
+
+**📄 Plain Text Import:**
 1. Click the **📥** import button in the header
-2. Select a previously exported JSON file
-3. The app supports:
-   - Native format imports (perfect compatibility)
-   - Cross-app imports with automatic format conversion
-   - Duplicate detection and prevention
-   - Settings migration (language & currency)
+2. Select a plain JSON file
+3. Data will be imported automatically
+
+**🔐 Encrypted Import:**
+1. Click the **📥** import button in the header
+2. Select an encrypted JSON file
+3. The app will automatically detect encryption
+4. Enter the password used during export
+5. Click **"Decrypt & Import"**
+6. Data will be decrypted and imported securely
+
+**Import Features:**
+- **Auto-Detection**: Automatically detects encrypted vs. plain files
+- **Cross-Format Compatibility**: Supports importing from other expense apps
+- **Duplicate Prevention**: Prevents importing the same expenses twice
+- **Settings Migration**: Preserves language and currency preferences
+- **Error Handling**: Clear feedback for incorrect passwords or corrupted files
+
+**Security Notes:**
+- 🔐 Encrypted files are completely secure without the password
+- 💾 Keep your passwords safe - lost passwords cannot be recovered
+- 🗂️ Regular backups are recommended for important financial data
+- 🌐 All encryption/decryption happens locally in your browser
 
 ## 🗂️ Available Categories
 

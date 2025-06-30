@@ -118,7 +118,27 @@ const translations = {
         // Settings
         settings: "Settings",
         saveSettings: "Save Settings",
-        settingsSaved: "Settings saved successfully!"
+        settingsSaved: "Settings saved successfully!",
+        
+        // Encryption
+        exportOptions: "Export Options",
+        plainTextExport: "Plain Text (No Encryption)",
+        plainTextDesc: "Export data as readable JSON file",
+        encryptedExport: "Encrypted (Password Protected)",
+        encryptedDesc: "Export data encrypted with a password",
+        enterPassword: "Enter Password",
+        confirmPassword: "Confirm Password",
+        passwordPlaceholder: "Enter password",
+        confirmPasswordPlaceholder: "Confirm password",
+        passwordMismatch: "Passwords do not match",
+        passwordTooShort: "Password must be at least 8 characters long",
+        encryptionFailed: "Encryption failed",
+        decryptAndImport: "Decrypt & Import",
+        decrypting: "Decrypting...",
+        decryptingData: "Decrypting data...",
+        incorrectPassword: "Incorrect password or corrupted file",
+        fileEncrypted: "This file is encrypted. Please enter the password to decrypt it:",
+        importCancelled: "Import cancelled"
     },
     fr: {
         // Header
@@ -208,7 +228,27 @@ const translations = {
         // Settings
         settings: "Paramètres",
         saveSettings: "Enregistrer les Paramètres",
-        settingsSaved: "Paramètres enregistrés avec succès!"
+        settingsSaved: "Paramètres enregistrés avec succès!",
+        
+        // Encryption
+        exportOptions: "Options d'Exportation",
+        plainTextExport: "Texte Brut (Sans Chiffrement)",
+        plainTextDesc: "Exporter les données comme fichier JSON lisible",
+        encryptedExport: "Chiffré (Protégé par Mot de Passe)",
+        encryptedDesc: "Exporter les données chiffrées avec un mot de passe",
+        enterPassword: "Entrer le Mot de Passe",
+        confirmPassword: "Confirmer le Mot de Passe",
+        passwordPlaceholder: "Entrer le mot de passe",
+        confirmPasswordPlaceholder: "Confirmer le mot de passe",
+        passwordMismatch: "Les mots de passe ne correspondent pas",
+        passwordTooShort: "Le mot de passe doit contenir au moins 8 caractères",
+        encryptionFailed: "Échec du chiffrement",
+        decryptAndImport: "Déchiffrer et Importer",
+        decrypting: "Déchiffrement...",
+        decryptingData: "Déchiffrement des données...",
+        incorrectPassword: "Mot de passe incorrect ou fichier corrompu",
+        fileEncrypted: "Ce fichier est chiffré. Veuillez entrer le mot de passe pour le déchiffrer:",
+        importCancelled: "Importation annulée"
     },
     ja: {
         // Header
@@ -298,7 +338,27 @@ const translations = {
         // Settings
         settings: "設定",
         saveSettings: "設定を保存",
-        settingsSaved: "設定が正常に保存されました！"
+        settingsSaved: "設定が正常に保存されました！",
+        
+        // Encryption
+        exportOptions: "エクスポートオプション",
+        plainTextExport: "プレーンテキスト（暗号化なし）",
+        plainTextDesc: "読み取り可能なJSONファイルとしてデータをエクスポート",
+        encryptedExport: "暗号化（パスワード保護）",
+        encryptedDesc: "パスワードで暗号化されたデータをエクスポート",
+        enterPassword: "パスワードを入力",
+        confirmPassword: "パスワードを確認",
+        passwordPlaceholder: "パスワードを入力",
+        confirmPasswordPlaceholder: "パスワードを確認",
+        passwordMismatch: "パスワードが一致しません",
+        passwordTooShort: "パスワードは8文字以上である必要があります",
+        encryptionFailed: "暗号化に失敗しました",
+        decryptAndImport: "復号化してインポート",
+        decrypting: "復号化中...",
+        decryptingData: "データを復号化中...",
+        incorrectPassword: "パスワードが間違っているかファイルが破損しています",
+        fileEncrypted: "このファイルは暗号化されています。復号化するためのパスワードを入力してください：",
+        importCancelled: "インポートがキャンセルされました"
     }
 };
 
@@ -1394,6 +1454,117 @@ class ExpenseTracker {
     }
 
     exportData() {
+        this.showExportOptionsModal();
+    }
+
+    showExportOptionsModal() {
+        const modal = document.createElement('div');
+        modal.className = 'modal show';
+        modal.innerHTML = `
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>📤 ${this.t('exportOptions')}</h2>
+                    <button class="modal-close" id="closeExportModal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="export-options">
+                        <label class="export-option">
+                            <input type="radio" name="exportType" value="plain" checked>
+                            <span class="option-label">📄 ${this.t('plainTextExport')}</span>
+                            <span class="option-description">${this.t('plainTextDesc')}</span>
+                        </label>
+                        <label class="export-option">
+                            <input type="radio" name="exportType" value="encrypted">
+                            <span class="option-label">🔐 ${this.t('encryptedExport')}</span>
+                            <span class="option-description">${this.t('encryptedDesc')}</span>
+                        </label>
+                    </div>
+                    <div class="password-section" id="passwordSection" style="display: none;">
+                        <div class="form-group">
+                            <label for="exportPassword">${this.t('enterPassword')}:</label>
+                            <input type="password" id="exportPassword" placeholder="${this.t('passwordPlaceholder')}">
+                        </div>
+                        <div class="form-group">
+                            <label for="exportPasswordConfirm">${this.t('confirmPassword')}:</label>
+                            <input type="password" id="exportPasswordConfirm" placeholder="${this.t('confirmPasswordPlaceholder')}">
+                        </div>
+                        <div class="password-strength" id="passwordStrength"></div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" id="cancelExportBtn">${this.t('cancel')}</button>
+                    <button class="btn btn-primary" id="performExportBtn">${this.t('exportData')}</button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        // Add event listeners for modal controls
+        const closeBtn = modal.querySelector('#closeExportModal');
+        const cancelBtn = modal.querySelector('#cancelExportBtn');
+        const exportBtn = modal.querySelector('#performExportBtn');
+        
+        const closeModal = () => {
+            modal.remove();
+        };
+        
+        closeBtn.addEventListener('click', closeModal);
+        cancelBtn.addEventListener('click', closeModal);
+        exportBtn.addEventListener('click', () => this.performExport());
+        
+        // Close modal when clicking outside
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                closeModal();
+            }
+        });
+        
+        // Add event listeners for export type radio buttons
+        const radioButtons = modal.querySelectorAll('input[name="exportType"]');
+        radioButtons.forEach(radio => {
+            radio.addEventListener('change', () => {
+                const passwordSection = modal.querySelector('#passwordSection');
+                if (radio.value === 'encrypted') {
+                    passwordSection.style.display = 'block';
+                } else {
+                    passwordSection.style.display = 'none';
+                }
+            });
+        });
+        
+        // Add password strength indicator
+        const passwordInput = modal.querySelector('#exportPassword');
+        const strengthIndicator = modal.querySelector('#passwordStrength');
+        
+        if (passwordInput && strengthIndicator) {
+            passwordInput.addEventListener('input', () => {
+                const password = passwordInput.value;
+                const strength = this.calculatePasswordStrength(password);
+                strengthIndicator.textContent = strength.text;
+                strengthIndicator.className = `password-strength ${strength.class}`;
+            });
+        }
+    }
+
+    async performExport() {
+        // Find the modal more specifically
+        const modal = document.querySelector('.modal.show');
+        if (!modal) {
+            console.error('Export modal not found');
+            this.showToast('Export modal not found', 'error');
+            return;
+        }
+
+        const exportTypeElement = modal.querySelector('input[name="exportType"]:checked');
+        if (!exportTypeElement) {
+            console.error('Export type not selected');
+            this.showToast('Please select an export type', 'error');
+            return;
+        }
+
+        const exportType = exportTypeElement.value;
+        
         // Define the categories available in the app
         const categories = this.getCategories();
 
@@ -1405,18 +1576,141 @@ class ExpenseTracker {
             exportDate: new Date().toISOString(),
             version: '1.0'
         };
+        
+        let exportData;
+        let filename;
+        
+        if (exportType === 'encrypted') {
+            const passwordElement = modal.querySelector('#exportPassword');
+            const confirmPasswordElement = modal.querySelector('#exportPasswordConfirm');
+            
+            if (!passwordElement || !confirmPasswordElement) {
+                console.error('Password fields not found in modal');
+                this.showToast('Password fields not found', 'error');
+                return;
+            }
 
-        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const password = passwordElement.value;
+            const confirmPassword = confirmPasswordElement.value;
+            
+            if (!password) {
+                this.showToast('Please enter a password', 'error');
+                return;
+            }
+            
+            if (password !== confirmPassword) {
+                this.showToast(this.t('passwordMismatch'), 'error');
+                return;
+            }
+            
+            if (password.length < 8) {
+                this.showToast(this.t('passwordTooShort'), 'error');
+                return;
+            }
+            
+            try {
+                exportData = await this.encryptData(data, password);
+                filename = `family-expenses-encrypted-${new Date().toISOString().split('T')[0]}.json`;
+            } catch (error) {
+                console.error('Encryption error:', error);
+                this.showToast(this.t('encryptionFailed') + ': ' + error.message, 'error');
+                return;
+            }
+        } else {
+            exportData = JSON.stringify(data, null, 2);
+            filename = `family-expenses-${new Date().toISOString().split('T')[0]}.json`;
+        }
+        
+        const blob = new Blob([exportData], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `family-expenses-${new Date().toISOString().split('T')[0]}.json`;
+        a.download = filename;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-
+        
+        modal.remove();
         this.showToast(this.t('dataExported'));
+    }
+
+    calculatePasswordStrength(password) {
+        let score = 0;
+        let feedback = [];
+        
+        if (password.length >= 8) score += 1;
+        else feedback.push('at least 8 characters');
+        
+        if (/[a-z]/.test(password)) score += 1;
+        else feedback.push('lowercase letters');
+        
+        if (/[A-Z]/.test(password)) score += 1;
+        else feedback.push('uppercase letters');
+        
+        if (/[0-9]/.test(password)) score += 1;
+        else feedback.push('numbers');
+        
+        if (/[^A-Za-z0-9]/.test(password)) score += 1;
+        else feedback.push('special characters');
+        
+        if (score < 2) return { text: 'Weak - Add: ' + feedback.slice(0, 2).join(', '), class: 'weak' };
+        if (score < 4) return { text: 'Medium - Add: ' + feedback.slice(0, 1).join(', '), class: 'medium' };
+        return { text: 'Strong', class: 'strong' };
+    }
+
+    async encryptData(data, password) {
+        try {
+            // Generate a random salt
+            const salt = crypto.getRandomValues(new Uint8Array(16));
+            
+            // Generate a random IV
+            const iv = crypto.getRandomValues(new Uint8Array(12));
+            
+            // Import the password as a key
+            const keyMaterial = await crypto.subtle.importKey(
+                'raw',
+                new TextEncoder().encode(password),
+                { name: 'PBKDF2' },
+                false,
+                ['deriveKey']
+            );
+            
+            // Derive the encryption key using PBKDF2
+            const key = await crypto.subtle.deriveKey(
+                {
+                    name: 'PBKDF2',
+                    salt: salt,
+                    iterations: 100000,
+                    hash: 'SHA-256'
+                },
+                keyMaterial,
+                { name: 'AES-GCM', length: 256 },
+                false,
+                ['encrypt']
+            );
+            
+            // Encrypt the data
+            const encodedData = new TextEncoder().encode(JSON.stringify(data));
+            const encryptedData = await crypto.subtle.encrypt(
+                { name: 'AES-GCM', iv: iv },
+                key,
+                encodedData
+            );
+            
+            // Create the encrypted package
+            const encryptedPackage = {
+                encrypted: true,
+                version: '1.0',
+                salt: Array.from(salt),
+                iv: Array.from(iv),
+                data: Array.from(new Uint8Array(encryptedData))
+            };
+            
+            return JSON.stringify(encryptedPackage, null, 2);
+        } catch (error) {
+            throw new Error('Failed to encrypt data: ' + error.message);
+        }
     }
 
     importData(event) {
@@ -1424,68 +1718,15 @@ class ExpenseTracker {
         if (!file) return;
 
         const reader = new FileReader();
-        reader.onload = (e) => {
+        reader.onload = async (e) => {
             try {
-                const data = JSON.parse(e.target.result);
+                const rawData = JSON.parse(e.target.result);
                 
-                if (data.expenses && Array.isArray(data.expenses)) {
-                    // Transform expenses to match our format
-                    let hasConvertedExpenses = false;
-                    const transformedExpenses = data.expenses.map(expense => {
-                        // Check if expense already has our format (has paidBy field)
-                        if (expense.paidBy !== undefined) {
-                            return expense; // Already in our format
-                        }
-                        
-                        // Transform from other app format to our format
-                        hasConvertedExpenses = true;
-                        return {
-                            id: expense.id ? expense.id.toString() : Date.now().toString(),
-                            amount: parseFloat(expense.amount) || 0,
-                            description: expense.description || '',
-                            category: expense.category || 'Other',
-                            date: expense.date || new Date().toISOString().split('T')[0],
-                            paidBy: 'Unknown', // Default value for missing field
-                            timestamp: expense.timestamp || new Date().toISOString()
-                        };
-                    });
-                    
-                    // Merge imported expenses with existing ones (avoid duplicates by ID)
-                    const existingIds = new Set(this.expenses.map(e => e.id));
-                    const newExpenses = transformedExpenses.filter(e => !existingIds.has(e.id));
-                    
-                    this.expenses = [...this.expenses, ...newExpenses];
-                    this.saveExpenses();
-                    
-                    // Handle language settings
-                    if (data.language && translations[data.language]) {
-                        this.setLanguage(data.language);
-                    }
-                    
-                    // Handle currency settings - support both formats
-                    let currencyCode = null;
-                    if (data.currency) {
-                        if (typeof data.currency === 'string') {
-                            // Our format: currency is a string like "USD"
-                            currencyCode = data.currency;
-                        } else if (data.currency.code) {
-                            // Other app format: currency is an object with code property
-                            currencyCode = data.currency.code;
-                        }
-                        
-                        if (currencyCode && currencies[currencyCode]) {
-                            this.setCurrency(currencyCode);
-                        }
-                    }
-                    
-                    // Show appropriate success message
-                    const message = hasConvertedExpenses ? this.t('dataImportedConverted') : this.t('dataImported');
-                    this.showToast(message);
-                    this.updateDashboard();
-                    this.renderExpenseHistory();
-                    this.setupFilters();
+                // Check if data is encrypted
+                if (rawData.encrypted === true) {
+                    await this.handleEncryptedImport(rawData);
                 } else {
-                    throw new Error('Invalid file format');
+                    await this.handlePlainImport(rawData);
                 }
             } catch (error) {
                 console.error('Import error:', error);
@@ -1496,6 +1737,191 @@ class ExpenseTracker {
         
         // Reset file input
         event.target.value = '';
+    }
+
+    async handleEncryptedImport(encryptedData) {
+        return new Promise((resolve, reject) => {
+            const modal = document.createElement('div');
+            modal.className = 'modal show';
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2>🔐 ${this.t('enterPassword')}</h2>
+                        <button class="modal-close" id="cancelImportBtn">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <p>${this.t('fileEncrypted')}</p>
+                        <div class="form-group">
+                            <label for="importPassword">${this.t('enterPassword')}:</label>
+                            <input type="password" id="importPassword" placeholder="${this.t('passwordPlaceholder')}" autofocus>
+                        </div>
+                        <div class="decrypt-status" id="decryptStatus"></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" id="cancelImportBtn2">${this.t('cancel')}</button>
+                        <button class="btn btn-primary" id="decryptBtn">${this.t('decryptAndImport')}</button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            const passwordInput = modal.querySelector('#importPassword');
+            const decryptBtn = modal.querySelector('#decryptBtn');
+            const statusDiv = modal.querySelector('#decryptStatus');
+            const cancelBtn1 = modal.querySelector('#cancelImportBtn');
+            const cancelBtn2 = modal.querySelector('#cancelImportBtn2');
+            
+            const cancelImport = () => {
+                modal.remove();
+                reject(new Error(this.t('importCancelled')));
+            };
+            
+            cancelBtn1.addEventListener('click', cancelImport);
+            cancelBtn2.addEventListener('click', cancelImport);
+            
+            const attemptDecrypt = async () => {
+                const password = passwordInput.value;
+                if (!password) {
+                    statusDiv.textContent = this.t('passwordPlaceholder');
+                    statusDiv.className = 'decrypt-status error';
+                    return;
+                }
+                
+                try {
+                    decryptBtn.disabled = true;
+                    decryptBtn.textContent = this.t('decrypting');
+                    statusDiv.textContent = this.t('decryptingData');
+                    statusDiv.className = 'decrypt-status info';
+                    
+                    const decryptedData = await this.decryptData(encryptedData, password);
+                    await this.handlePlainImport(decryptedData);
+                    
+                    modal.remove();
+                    resolve();
+                } catch (error) {
+                    console.error('Decryption error:', error);
+                    statusDiv.textContent = this.t('incorrectPassword');
+                    statusDiv.className = 'decrypt-status error';
+                    decryptBtn.disabled = false;
+                    decryptBtn.textContent = this.t('decryptAndImport');
+                }
+            };
+            
+            decryptBtn.addEventListener('click', attemptDecrypt);
+            passwordInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    attemptDecrypt();
+                }
+            });
+        });
+    }
+
+    async handlePlainImport(data) {
+        if (data.expenses && Array.isArray(data.expenses)) {
+            // Transform expenses to match our format
+            let hasConvertedExpenses = false;
+            const transformedExpenses = data.expenses.map(expense => {
+                // Check if expense already has our format (has paidBy field)
+                if (expense.paidBy !== undefined) {
+                    return expense; // Already in our format
+                }
+                
+                // Transform from other app format to our format
+                hasConvertedExpenses = true;
+                return {
+                    id: expense.id ? expense.id.toString() : Date.now().toString(),
+                    amount: parseFloat(expense.amount) || 0,
+                    description: expense.description || '',
+                    category: expense.category || 'Other',
+                    date: expense.date || new Date().toISOString().split('T')[0],
+                    paidBy: 'Unknown', // Default value for missing field
+                    timestamp: expense.timestamp || new Date().toISOString()
+                };
+            });
+            
+            // Merge imported expenses with existing ones (avoid duplicates by ID)
+            const existingIds = new Set(this.expenses.map(e => e.id));
+            const newExpenses = transformedExpenses.filter(e => !existingIds.has(e.id));
+            
+            this.expenses = [...this.expenses, ...newExpenses];
+            this.saveExpenses();
+            
+            // Handle language settings
+            if (data.language && translations[data.language]) {
+                this.setLanguage(data.language);
+            }
+            
+            // Handle currency settings - support both formats
+            let currencyCode = null;
+            if (data.currency) {
+                if (typeof data.currency === 'string') {
+                    // Our format: currency is a string like "USD"
+                    currencyCode = data.currency;
+                } else if (data.currency.code) {
+                    // Other app format: currency is an object with code property
+                    currencyCode = data.currency.code;
+                }
+                
+                if (currencyCode && currencies[currencyCode]) {
+                    this.setCurrency(currencyCode);
+                }
+            }
+            
+            // Show appropriate success message
+            const message = hasConvertedExpenses ? this.t('dataImportedConverted') : this.t('dataImported');
+            this.showToast(message);
+            this.updateDashboard();
+            this.renderExpenseHistory();
+            this.setupFilters();
+        } else {
+            throw new Error('Invalid file format');
+        }
+    }
+
+    async decryptData(encryptedPackage, password) {
+        try {
+            // Extract the encrypted data components
+            const salt = new Uint8Array(encryptedPackage.salt);
+            const iv = new Uint8Array(encryptedPackage.iv);
+            const encryptedData = new Uint8Array(encryptedPackage.data);
+            
+            // Import the password as a key
+            const keyMaterial = await crypto.subtle.importKey(
+                'raw',
+                new TextEncoder().encode(password),
+                { name: 'PBKDF2' },
+                false,
+                ['deriveKey']
+            );
+            
+            // Derive the decryption key using PBKDF2
+            const key = await crypto.subtle.deriveKey(
+                {
+                    name: 'PBKDF2',
+                    salt: salt,
+                    iterations: 100000,
+                    hash: 'SHA-256'
+                },
+                keyMaterial,
+                { name: 'AES-GCM', length: 256 },
+                false,
+                ['decrypt']
+            );
+            
+            // Decrypt the data
+            const decryptedData = await crypto.subtle.decrypt(
+                { name: 'AES-GCM', iv: iv },
+                key,
+                encryptedData
+            );
+            
+            // Convert back to JSON
+            const decryptedText = new TextDecoder().decode(decryptedData);
+            return JSON.parse(decryptedText);
+        } catch (error) {
+            throw new Error('Failed to decrypt data: Incorrect password or corrupted file');
+        }
     }
 
     showToast(message, type = 'success') {
