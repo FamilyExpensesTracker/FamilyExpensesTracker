@@ -359,4 +359,22 @@ If you find this project useful, please consider giving it a star on GitHub! ⭐
 - Flag Icons CSS for country flag icons
 - The open-source community for inspiration and feedback
 
+## API Smoke Tests
+
+The repository includes a repeatable API smoke test for authentication and sync flow.
+
+Prerequisites:
+- `php` and `php-cgi` in `PATH`
+- PHP extensions `sqlite3` and `pdo_sqlite`
+
+Run from project root:
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tests/e2e/run-api-smoke.ps1
+```
+
+Keep generated artifacts for debugging:
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tests/e2e/run-api-smoke.ps1 -KeepArtifacts
+```
+
 ---

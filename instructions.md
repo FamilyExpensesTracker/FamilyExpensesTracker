@@ -44,3 +44,14 @@ Example root deployment:
 - Check PHP error logs in cPanel
 - Ensure SQLite3 extension is enabled
 - Ensure private directories are writable and not publicly accessible
+
+## API Smoke Test (Local)
+
+Prerequisites:
+- `php` and `php-cgi` available in `PATH`
+- PHP extensions `sqlite3` and `pdo_sqlite` enabled
+
+Run from project root:
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tests/e2e/run-api-smoke.ps1
+```
