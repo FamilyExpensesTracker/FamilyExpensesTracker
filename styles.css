@@ -1922,3 +1922,87 @@ body {
     justify-content: center;
     gap: 4px;
 }
+
+/* Sync UI Styles */
+.sync-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+#syncBtn.syncing {
+    animation: rotate 1s linear infinite;
+}
+
+@keyframes rotate {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.sync-status {
+    font-size: 12px;
+    color: #666;
+    white-space: nowrap;
+}
+
+.sync-status.syncing {
+    color: #667eea;
+    font-weight: 600;
+}
+
+.sync-status.synced {
+    color: #27ae60;
+}
+
+.sync-status.error {
+    color: #e74c3c;
+}
+
+.sync-status.offline {
+    color: #95a5a6;
+}
+
+.status-message {
+    margin-top: 15px;
+    padding: 12px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.status-message.error {
+    background: rgba(231, 76, 60, 0.1);
+    color: #e74c3c;
+    border: 1px solid rgba(231, 76, 60, 0.2);
+}
+
+.status-message.success {
+    background: rgba(46, 204, 113, 0.1);
+    color: #2ecc71;
+    border: 1px solid rgba(46, 204, 113, 0.2);
+}
+
+/* Responsive sync UI */
+@media (max-width: 768px) {
+    .sync-container {
+        flex-direction: column;
+        gap: 5px;
+        align-items: center;
+    }
+    
+    .sync-status {
+        font-size: 10px;
+    }
+}
+
+.sync-logout-btn {
+    padding: 8px 12px;
+    font-size: 12px;
+}
+
+@media (max-width: 768px) {
+    .sync-logout-btn {
+        width: 100%;
+        justify-content: center;
+    }
+}

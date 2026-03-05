@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="expense-api-base" content="./api">
     <title>Family Expense Tracker</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flag-icon-css/7.2.3/css/flag-icons.min.css">
     <link rel="stylesheet" href="styles.css">
@@ -14,6 +15,11 @@
         <header class="header">
             <h1>🏠 Family Expense Tracker</h1>
             <div class="header-actions">
+                <div class="sync-container">
+                    <button id="syncBtn" class="btn btn-icon" title="Sync">☁️</button>
+                    <span id="syncStatus" class="sync-status"></span>
+                    <button id="syncLogoutBtn" class="btn btn-secondary sync-logout-btn" style="display: none;">Logout</button>
+                </div>
                 <button id="exportBtn" class="btn btn-secondary" title="Export Data">📤</button>
                 <button id="importBtn" class="btn btn-secondary" title="Import Data">📥</button>
                 <button id="settingsBtn" class="btn btn-icon" title="Settings">⚙️</button>
@@ -89,7 +95,7 @@
             <div class="chart-container">
                 <div class="chart-card">
                     <div class="chart-header">
-                        <h3>Expenses by Category</h3>
+                        <h3 id="categoryChartTitle">Expenses by Category</h3>
                         <div class="chart-controls">
                             <div class="period-selector">
                                 <button class="period-btn" data-period="7">7D</button>
@@ -118,7 +124,7 @@
                     <canvas id="categoryChart"></canvas>
                 </div>
                 <div class="chart-card">
-                    <h3>Monthly Spending Trend</h3>
+                    <h3 id="trendChartTitle">Monthly Spending Trend</h3>
                     <canvas id="trendChart"></canvas>
                 </div>
             </div>
@@ -126,7 +132,7 @@
             <div class="chart-container">
                 <div class="chart-card">
                     <div class="chart-header">
-                        <h3>Spending by Family Member</h3>
+                        <h3 id="memberChartTitle">Spending by Family Member</h3>
                         <div class="chart-controls">
                             <div class="period-selector">
                                 <button class="period-btn member-period-btn" data-period="7">7D</button>
@@ -155,7 +161,7 @@
                     <canvas id="memberChart"></canvas>
                 </div>
                 <div class="chart-card">
-                    <h3>Daily Spending (Last 30 Days)</h3>
+                    <h3 id="dailyChartTitle">Daily Spending (Last 30 Days)</h3>
                     <canvas id="dailyChart"></canvas>
                 </div>
             </div>

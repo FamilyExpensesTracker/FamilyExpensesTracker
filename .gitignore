@@ -1,0 +1,14 @@
+# Runtime secrets and data
+private/config.php
+private/data/
+data/
+
+# Logs and caches
+*.log
+
+# Local/generated helper artifacts
+workspace_concatenated.txt
+
+# Environment files
+.env
+.env.*

@@ -2,11 +2,11 @@
 
 A modern, multilingual family expense tracking web application with enhanced dashboard capabilities and custom date range analysis.
 
-## 🔒 Privacy First - Your Data Stays Local
+## Local-First With Optional Cloud Sync
 
-**🏠 100% Local Storage**: All your expense data is stored locally in your browser only - nothing is ever sent to or stored on any server. This ensures complete privacy of your financial information, but also means **you are responsible for backing up your data** to avoid loss if browser data is cleared or corrupted.
+The tracker works offline with browser storage by default. You can also enable optional cloud sync (OTP login + API backend) to keep data across devices and reduce data-loss risk.
 
-⚠️ **Important**: Export your data regularly using the 📤 export button to prevent data loss!
+Important: if you stay local-only, export backups regularly.
 
 ## 🌐 Demo
 
@@ -250,9 +250,9 @@ The application uses a structured JSON format for data storage:
 
 ## 🔒 Privacy & Security
 
-- **100% Client-Side**: All data stays on your device
-- **No Server Communication**: Zero data transmission to external servers
-- **Local Storage Only**: Data is stored in your browser's secure local storage
+- **Local-First**: Data stays in your browser by default
+- **Optional Cloud Sync**: Data is sent to your configured API only when sync is enabled
+- **Cross-Device Mode**: Enable sync to share data across multiple devices
 - **No External Dependencies**: Except for Chart.js and Flag Icons CDN
 - **Offline Capable**: Works without internet connection after initial load
 - **No Tracking**: Zero analytics, cookies, or user tracking
