@@ -270,6 +270,9 @@ export class ExpenseTracker extends BaseExpenseTracker {
                 document.getElementById("editRecurrence")?.value || "none",
             ),
         );
+        this.applyEditModeVisibility(
+            document.getElementById("editModal")?.dataset.editMode || "",
+        );
     }
 
     updateSettingsModalTexts() {
@@ -334,6 +337,10 @@ export class ExpenseTracker extends BaseExpenseTracker {
         return super.loadExpenses().map((expense) => this.normalizeExpense(expense));
     }
 
+    getHistoryExpensesSource() {
+        return this.expenses.filter((expense) => !this.isSeriesAnchor(expense));
+    }
+
     normalizeRecurrence(value) {
         return recurrenceOptions.includes(value) ? value : "none";
     }
@@ -354,6 +361,7 @@ export class ExpenseTracker extends BaseExpenseTracker {
             occurrenceDate,
             excludedDates: this.normalizeDateList(expense.excludedDates),
             isRecurringTemplate: Boolean(expense.isRecurringTemplate),
+            isSeriesAnchorOnly: Boolean(expense.isSeriesAnchorOnly),
             isGeneratedRecurring: Boolean(
                 expense.isGeneratedRecurring ||
                     (!expense.isRecurringTemplate && generatedFromId),
@@ -382,6 +390,7 @@ export class ExpenseTracker extends BaseExpenseTracker {
 
         if (!normalized.isRecurringTemplate) {
             normalized.excludedDates = [];
+            normalized.isSeriesAnchorOnly = false;
         }
 
         return normalized;
@@ -517,6 +526,44 @@ export class ExpenseTracker extends BaseExpenseTracker {
         return this.normalizeDateValue(expense?.occurrenceDate || expense?.date || "");
     }
 
+    isSeriesAnchor(expense) {
+        return Boolean(expense?.isRecurringTemplate && expense?.isSeriesAnchorOnly);
+    }
+
+    findRecurringTemplate(expense) {
+        if (!expense) {
+            return null;
+        }
+
+        if (expense.isRecurringTemplate) {
+            return expense;
+        }
+
+        const templateId = String(expense.generatedFromId || "");
+        if (templateId) {
+            return (
+                this.expenses.find(
+                    (candidate) =>
+                        String(candidate.id) === templateId &&
+                        candidate.isRecurringTemplate,
+                ) || null
+            );
+        }
+
+        const seriesId = String(expense.seriesId || "");
+        if (!seriesId) {
+            return null;
+        }
+
+        return (
+            this.expenses.find(
+                (candidate) =>
+                    candidate.isRecurringTemplate &&
+                    String(candidate.seriesId || candidate.id) === seriesId,
+            ) || null
+        );
+    }
+
     hasOccurrenceChanges(originalExpense, updatedExpense) {
         return (
             Number(originalExpense.amount) !== Number(updatedExpense.amount) ||
@@ -566,10 +613,21 @@ export class ExpenseTracker extends BaseExpenseTracker {
     detachGeneratedOccurrence(expense) {
         return this.normalizeExpense({
             ...expense,
-            seriesId: String(expense.id),
+            seriesId: expense.seriesId || String(expense.id),
             generatedFromId: "",
             occurrenceDate: "",
+            isSeriesAnchorOnly: false,
             isGeneratedRecurring: false,
+        });
+    }
+
+    createSeriesAnchorTemplate(expense) {
+        const lastModifiedMs = Date.now();
+        return this.normalizeExpense({
+            ...expense,
+            isSeriesAnchorOnly: true,
+            lastModifiedMs,
+            lastModified: new Date(lastModifiedMs).toISOString(),
         });
     }
 
@@ -802,6 +860,166 @@ export class ExpenseTracker extends BaseExpenseTracker {
         this.checkBudgetAlerts(previousTotals);
     }
 
+    async editExpense(id) {
+        const expense = this.expenses.find((candidate) => candidate.id === id);
+        if (!expense) {
+            this.showToast("Expense not found", "error");
+            return;
+        }
+
+        const template = this.findRecurringTemplate(expense);
+        if (!template || this.isSeriesAnchor(expense)) {
+            this.openExpenseEdit(expense);
+            return;
+        }
+
+        const editMode = await this.promptRecurringEditMode();
+        if (!editMode) {
+            return;
+        }
+
+        if (editMode === "series") {
+            this.openExpenseEdit(template);
+            return;
+        }
+
+        this.openExpenseEdit(expense, "occurrence");
+    }
+
+    openExpenseEdit(expense, mode = "") {
+        const modal = document.getElementById("editModal");
+        if (!modal) {
+            return;
+        }
+
+        if (mode === "occurrence") {
+            modal.dataset.editMode = "occurrence";
+        } else {
+            delete modal.dataset.editMode;
+        }
+
+        this.showEditModal(expense);
+    }
+
+    promptRecurringEditMode() {
+        return new Promise((resolve) => {
+            const existingModal = document.getElementById(
+                "recurringEditChoiceModal",
+            );
+            if (existingModal) {
+                existingModal.remove();
+            }
+
+            const modal = document.createElement("div");
+            modal.id = "recurringEditChoiceModal";
+            modal.className = "modal show recurring-edit-modal";
+            modal.innerHTML = `
+                <div class="modal-content recurring-edit-modal-content">
+                    <div class="modal-header">
+                        <h2>${this.t("editRecurringTitle")}</h2>
+                        <button type="button" class="modal-close" id="closeRecurringEditChoice">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="recurring-edit-description">${this.t("editRecurringDesc")}</p>
+                        <div class="recurring-edit-options">
+                            <button type="button" class="recurring-edit-card" id="editOccurrenceChoice">
+                                <strong>${this.t("editThisOccurrence")}</strong>
+                                <span>${this.t("editThisOccurrenceDesc")}</span>
+                            </button>
+                            <button type="button" class="recurring-edit-card recurring-edit-card-series" id="editSeriesChoice">
+                                <strong>${this.t("editWholeSeries")}</strong>
+                                <span>${this.t("editWholeSeriesDesc")}</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" id="cancelRecurringEditChoice">${this.t("cancel")}</button>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+            document.body.style.overflow = "hidden";
+
+            const occurrenceBtn = document.getElementById("editOccurrenceChoice");
+            const seriesBtn = document.getElementById("editSeriesChoice");
+            const closeBtn = document.getElementById("closeRecurringEditChoice");
+            const cancelBtn = document.getElementById("cancelRecurringEditChoice");
+            let settled = false;
+
+            const cleanup = (result) => {
+                if (settled) {
+                    return;
+                }
+
+                settled = true;
+                occurrenceBtn?.removeEventListener("click", handleOccurrence);
+                seriesBtn?.removeEventListener("click", handleSeries);
+                closeBtn?.removeEventListener("click", handleCancel);
+                cancelBtn?.removeEventListener("click", handleCancel);
+                modal.removeEventListener("click", handleBackdropClick);
+                document.removeEventListener("keydown", handleKeydown);
+                modal.remove();
+                document.body.style.overflow = "";
+                resolve(result);
+            };
+
+            const handleOccurrence = () => cleanup("occurrence");
+            const handleSeries = () => cleanup("series");
+            const handleCancel = () => cleanup(null);
+            const handleBackdropClick = (event) => {
+                if (event.target === modal) {
+                    handleCancel();
+                }
+            };
+            const handleKeydown = (event) => {
+                if (event.key === "Escape") {
+                    handleCancel();
+                }
+            };
+
+            occurrenceBtn?.addEventListener("click", handleOccurrence);
+            seriesBtn?.addEventListener("click", handleSeries);
+            closeBtn?.addEventListener("click", handleCancel);
+            cancelBtn?.addEventListener("click", handleCancel);
+            modal.addEventListener("click", handleBackdropClick);
+            document.addEventListener("keydown", handleKeydown);
+
+            setTimeout(() => occurrenceBtn?.focus(), 0);
+        });
+    }
+
+    applyEditModeVisibility(mode = "") {
+        const recurrenceGroup = document.querySelector('[data-enhanced="edit"]');
+        const recurrenceEndGroup = document.getElementById("editRecurrenceEndGroup");
+        const recurrenceSelect = document.getElementById("editRecurrence");
+        const recurrenceEnd = document.getElementById("editRecurrenceEnd");
+        const occurrenceMode = mode === "occurrence";
+
+        if (recurrenceGroup) {
+            recurrenceGroup.style.display = occurrenceMode ? "none" : "block";
+        }
+        if (recurrenceSelect) {
+            recurrenceSelect.disabled = occurrenceMode;
+        }
+        if (recurrenceEnd) {
+            recurrenceEnd.disabled = occurrenceMode;
+        }
+
+        if (occurrenceMode) {
+            this.populateRecurrenceSelect(recurrenceSelect, "none");
+            if (recurrenceEnd) {
+                recurrenceEnd.value = "";
+            }
+            if (recurrenceEndGroup) {
+                recurrenceEndGroup.style.display = "none";
+            }
+            return;
+        }
+
+        this.updateRecurrenceVisibility("edit");
+    }
+
     showEditModal(expense) {
         super.showEditModal(expense);
         const recurrenceSelect = document.getElementById("editRecurrence");
@@ -814,7 +1032,9 @@ export class ExpenseTracker extends BaseExpenseTracker {
         if (recurrenceEnd) {
             recurrenceEnd.value = expense.recurrenceEnd || "";
         }
-        this.updateRecurrenceVisibility("edit");
+        this.applyEditModeVisibility(
+            document.getElementById("editModal")?.dataset.editMode || "",
+        );
     }
 
     saveExpenseChanges() {
@@ -837,12 +1057,14 @@ export class ExpenseTracker extends BaseExpenseTracker {
             document.getElementById("editExpenseForm"),
             originalExpense,
         );
+        const editMode = modal.dataset.editMode || "";
+        const occurrenceOnly = editMode === "occurrence";
 
         if (!updatedExpense) {
             return;
         }
 
-        if (originalExpense.isRecurringTemplate) {
+        if (originalExpense.isRecurringTemplate && !occurrenceOnly) {
             this.removeGeneratedOccurrences(originalExpense.id, {
                 fromDate: this.todayYmd(),
                 trackDeletes: this.syncManager.isAuthenticated(),
@@ -850,7 +1072,34 @@ export class ExpenseTracker extends BaseExpenseTracker {
         }
 
         let nextExpense = updatedExpense;
-        if (
+        let additionalExpenses = [];
+        let removeCurrentExpense = false;
+        if (originalExpense.isRecurringTemplate && occurrenceOnly) {
+            const occurrenceId =
+                typeof crypto !== "undefined" && crypto.randomUUID
+                    ? crypto.randomUUID()
+                    : Date.now() + "-" + Math.random().toString(16).slice(2);
+            const occurrenceExpense = this.normalizeExpense({
+                ...updatedExpense,
+                id: occurrenceId,
+                seriesId: originalExpense.seriesId || String(originalExpense.id),
+                generatedFromId: "",
+                occurrenceDate: "",
+                excludedDates: [],
+                isRecurringTemplate: false,
+                isSeriesAnchorOnly: false,
+                isGeneratedRecurring: false,
+            });
+
+            nextExpense = this.createSeriesAnchorTemplate(originalExpense);
+            additionalExpenses = [occurrenceExpense];
+        } else if (
+            originalExpense.isRecurringTemplate &&
+            originalExpense.isSeriesAnchorOnly &&
+            !updatedExpense.isRecurringTemplate
+        ) {
+            removeCurrentExpense = true;
+        } else if (
             originalExpense.isGeneratedRecurring &&
             this.hasOccurrenceChanges(originalExpense, updatedExpense)
         ) {
@@ -858,7 +1107,14 @@ export class ExpenseTracker extends BaseExpenseTracker {
             nextExpense = this.detachGeneratedOccurrence(updatedExpense);
         }
 
-        this.expenses[expenseIndex] = nextExpense;
+        if (removeCurrentExpense) {
+            this.expenses.splice(expenseIndex, 1);
+        } else {
+            this.expenses[expenseIndex] = nextExpense;
+        }
+        if (additionalExpenses.length > 0) {
+            this.expenses.push(...additionalExpenses);
+        }
         this.cleanupOrphanedRecurringExpenses();
         this.generateRecurringExpenses({ save: false });
         this.saveExpenses();
@@ -937,6 +1193,7 @@ export class ExpenseTracker extends BaseExpenseTracker {
             occurrenceDate: existingExpense?.occurrenceDate || "",
             excludedDates: existingExpense?.excludedDates || [],
             isRecurringTemplate: recurrence !== "none",
+            isSeriesAnchorOnly: Boolean(existingExpense?.isSeriesAnchorOnly),
             isGeneratedRecurring: Boolean(existingExpense?.isGeneratedRecurring),
         };
 
@@ -1170,6 +1427,7 @@ export class ExpenseTracker extends BaseExpenseTracker {
             occurrenceDate: date,
             seriesId: template.seriesId || String(template.id),
             isRecurringTemplate: false,
+            isSeriesAnchorOnly: false,
             isGeneratedRecurring: true,
         });
     }
@@ -1245,7 +1503,7 @@ export class ExpenseTracker extends BaseExpenseTracker {
 
     getAnalyticsExpenses() {
         const today = this.parseDateOnly(this.todayYmd());
-        return this.expenses.filter((expense) => {
+        return this.getHistoryExpensesSource().filter((expense) => {
             const date = this.parseDateOnly(expense.date);
             return date && date <= today;
         });

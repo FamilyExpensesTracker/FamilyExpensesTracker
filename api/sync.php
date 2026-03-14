@@ -105,6 +105,7 @@ function normalizeExpenseMetadata($expense) {
     }
     $excludedDates = normalizeDateList($expense['excludedDates'] ?? []);
     $isRecurringTemplate = !empty($expense['isRecurringTemplate']) && $recurrence !== 'none';
+    $isSeriesAnchorOnly = $isRecurringTemplate && !empty($expense['isSeriesAnchorOnly']);
     $isGeneratedRecurring =
         !empty($expense['isGeneratedRecurring']) ||
         (!$isRecurringTemplate && !empty($generatedFromId));
@@ -119,6 +120,7 @@ function normalizeExpenseMetadata($expense) {
         $occurrenceDate = '';
     } else {
         $excludedDates = [];
+        $isSeriesAnchorOnly = false;
     }
 
     if (!$generatedFromId) {
@@ -134,6 +136,7 @@ function normalizeExpenseMetadata($expense) {
         'occurrenceDate' => $occurrenceDate,
         'excludedDates' => $excludedDates,
         'isRecurringTemplate' => $isRecurringTemplate,
+        'isSeriesAnchorOnly' => $isSeriesAnchorOnly,
         'isGeneratedRecurring' => $isGeneratedRecurring,
     ];
 }
@@ -173,6 +176,7 @@ function buildExpenseResponse($row) {
             : '',
         'excludedDates' => $metadata['excludedDates'],
         'isRecurringTemplate' => $metadata['isRecurringTemplate'],
+        'isSeriesAnchorOnly' => $metadata['isSeriesAnchorOnly'],
         'isGeneratedRecurring' => $metadata['isGeneratedRecurring'],
     ];
 }
@@ -496,6 +500,7 @@ if ($method === 'POST') {
                             'occurrenceDate' => $metadata['occurrenceDate'],
                             'excludedDates' => $metadata['excludedDates'],
                             'isRecurringTemplate' => $metadata['isRecurringTemplate'],
+                            'isSeriesAnchorOnly' => $metadata['isSeriesAnchorOnly'],
                             'isGeneratedRecurring' => $metadata['isGeneratedRecurring'],
                         ],
                         'server' => buildExpenseResponse($existing),

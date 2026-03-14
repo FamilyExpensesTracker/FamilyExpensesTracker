@@ -33,6 +33,7 @@ export class SyncManager extends BaseSyncManager {
                   )
                 : [],
             isRecurringTemplate: Boolean(expense.isRecurringTemplate),
+            isSeriesAnchorOnly: Boolean(expense.isSeriesAnchorOnly),
             isGeneratedRecurring: Boolean(expense.isGeneratedRecurring),
         };
     }

@@ -32,6 +32,16 @@ const extraTranslations = {
         applySelections: "Apply Selections",
         conflictsResolved: "Conflict selections applied.",
         noCustomCategories: "No custom categories",
+        editRecurringTitle: "Edit Recurring Expense",
+        editRecurringDesc:
+            "Choose whether to update only this occurrence or the recurring series.",
+        editThisOccurrence: "Edit This Occurrence",
+        editThisOccurrenceDesc:
+            "Change only the selected expense. Future recurring entries stay the same.",
+        editWholeSeries: "Edit Whole Series",
+        editWholeSeriesDesc:
+            "Update the recurring template and regenerate upcoming occurrences.",
+        seriesUnavailable: "Recurring series not found.",
     },
     fr: {
         monthlyBudgets: "Budgets mensuels",
@@ -61,6 +71,16 @@ const extraTranslations = {
         applySelections: "Appliquer",
         conflictsResolved: "Les conflits ont ete traites.",
         noCustomCategories: "Aucune categorie personnalisee",
+        editRecurringTitle: "Modifier la depense recurrente",
+        editRecurringDesc:
+            "Choisissez entre cette occurrence et toute la serie recurrente.",
+        editThisOccurrence: "Modifier cette occurrence",
+        editThisOccurrenceDesc:
+            "Modifie seulement la depense selectionnee. Les prochaines occurrences restent inchangees.",
+        editWholeSeries: "Modifier toute la serie",
+        editWholeSeriesDesc:
+            "Met a jour le modele recurrent et regenere les prochaines occurrences.",
+        seriesUnavailable: "Serie recurrente introuvable.",
     },
     ja: {
         monthlyBudgets: "月別予算",
@@ -89,6 +109,16 @@ const extraTranslations = {
         applySelections: "適用",
         conflictsResolved: "競合の選択を適用しました。",
         noCustomCategories: "カスタムカテゴリはありません",
+        editRecurringTitle: "定期支出を編集",
+        editRecurringDesc:
+            "この支出だけを変更するか、定期シリーズ全体を変更するかを選択してください。",
+        editThisOccurrence: "この支出だけ編集",
+        editThisOccurrenceDesc:
+            "選択した支出だけを変更します。今後の定期支出はそのままです。",
+        editWholeSeries: "シリーズ全体を編集",
+        editWholeSeriesDesc:
+            "定期テンプレートを更新し、今後の支出を再生成します。",
+        seriesUnavailable: "定期シリーズが見つかりません。",
     },
 };
 

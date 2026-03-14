@@ -367,6 +367,71 @@ body {
     justify-content: flex-end;
 }
 
+.recurring-edit-modal-content {
+    max-width: 640px;
+}
+
+.recurring-edit-description {
+    margin: 0 0 24px;
+    color: #4a5568;
+    line-height: 1.6;
+}
+
+.recurring-edit-options {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.recurring-edit-card {
+    border: 2px solid rgba(243, 156, 18, 0.2);
+    border-radius: 16px;
+    background: #fff7ef;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    text-align: left;
+    cursor: pointer;
+    transition:
+        transform 0.2s ease,
+        box-shadow 0.2s ease,
+        border-color 0.2s ease,
+        background 0.2s ease;
+}
+
+.recurring-edit-card strong {
+    color: #2c3e50;
+    font-size: 1rem;
+}
+
+.recurring-edit-card span {
+    color: #5d6d7e;
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+
+.recurring-edit-card:hover,
+.recurring-edit-card:focus-visible {
+    outline: none;
+    transform: translateY(-2px);
+    border-color: #f39c12;
+    background: white;
+    box-shadow: 0 14px 30px rgba(230, 126, 34, 0.18);
+}
+
+.recurring-edit-card-series {
+    border-color: rgba(102, 126, 234, 0.22);
+    background: #f7f8ff;
+}
+
+.recurring-edit-card-series:hover,
+.recurring-edit-card-series:focus-visible {
+    border-color: #667eea;
+    box-shadow: 0 14px 30px rgba(102, 126, 234, 0.18);
+}
+
 /* Animation keyframes */
 @keyframes fadeIn {
     from { opacity: 0; }
@@ -432,6 +497,16 @@ body {
 .confirm-modal .btn-secondary:hover {
     transform: translateY(-2px);
     box-shadow: 0 6px 20px rgba(108, 117, 125, 0.3);
+}
+
+@media (max-width: 640px) {
+    .recurring-edit-options {
+        grid-template-columns: 1fr;
+    }
+
+    .recurring-edit-card {
+        padding: 18px;
+    }
 }
 
 @keyframes confirmSlideIn {

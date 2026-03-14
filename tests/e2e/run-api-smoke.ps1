@@ -218,6 +218,7 @@ try {
                 seriesId = 'template-1'
                 excludedDates = @('2099-12-31')
                 isRecurringTemplate = $true
+                isSeriesAnchorOnly = $true
             },
             @{
                 id = 'expense-1'
@@ -323,6 +324,7 @@ try {
         $syncedExpense.generatedFromId -ne 'template-1' -or
         $syncedExpense.occurrenceDate -ne $today -or
         -not $syncedTemplate.isRecurringTemplate -or
+        -not $syncedTemplate.isSeriesAnchorOnly -or
         $syncedTemplate.excludedDates.Count -ne 1 -or
         $syncedTemplate.excludedDates[0] -ne '2099-12-31'
     ) {

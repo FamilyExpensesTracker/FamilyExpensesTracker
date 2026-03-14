@@ -143,6 +143,7 @@ export class BaseExpenseTracker {
         modal.classList.remove("show");
         document.body.style.overflow = "";
         delete modal.dataset.expenseId;
+        delete modal.dataset.editMode;
     }
     initializeEditModal() {
         const modal = document.getElementById("editModal");
@@ -1265,11 +1266,15 @@ export class BaseExpenseTracker {
         const d = this.parseDateOnly(ymd);
         return d ? d.toLocaleDateString(this.locale()) : "";
     }
+    getHistoryExpensesSource() {
+        return this.expenses;
+    }
     renderExpenseHistory(filteredExpenses = null) {
         const expenseList = document.getElementById("expenseList");
         const historyTotal = document.getElementById("historyTotal");
         const paginationControls = document.getElementById("paginationControls");
-        const expenses = filteredExpenses || this.sortExpenses(this.expenses);
+        const expenses =
+            filteredExpenses || this.sortExpenses(this.getHistoryExpensesSource());
         const totalAmount = expenses.reduce((s, e) => s + e.amount, 0);
         historyTotal.textContent = this.formatCurrency(totalAmount);
         if (!expenses.length) {
@@ -1331,7 +1336,8 @@ export class BaseExpenseTracker {
     }
     setupFilters() {
         // Populate category filter with proper translations
-        const usedCategories = [...new Set(this.expenses.map((e) => e.category))];
+        const sourceExpenses = this.getHistoryExpensesSource();
+        const usedCategories = [...new Set(sourceExpenses.map((e) => e.category))];
         const allCategories = this.getCategories();
         const categoryFilter = document.getElementById("categoryFilter");
         let categoryOptions = `<option value="">${this.t("allCategories")}</option>`;
@@ -1346,7 +1352,7 @@ export class BaseExpenseTracker {
             }
         });
         categoryFilter.innerHTML = categoryOptions; // Populate member filter
-        const members = [...new Set(this.expenses.map((e) => e.paidBy))];
+        const members = [...new Set(sourceExpenses.map((e) => e.paidBy))];
         const memberFilter = document.getElementById("memberFilter");
         memberFilter.innerHTML =
             `<option value="">${this.t("allMembers")}</option>` +
@@ -1372,7 +1378,7 @@ export class BaseExpenseTracker {
         const memberFilter = document.getElementById("memberFilter").value;
         const startDate = document.getElementById("historyStartDate").value;
         const endDate = document.getElementById("historyEndDate").value;
-        let filteredExpenses = this.expenses;
+        let filteredExpenses = this.getHistoryExpensesSource();
         if (categoryFilter) {
             filteredExpenses = filteredExpenses.filter(
                 (e) => e.category === categoryFilter,
