@@ -117,6 +117,19 @@ const translations = {
         passwordNeedUppercase: "uppercase letters",
         passwordNeedNumbers: "numbers",
         passwordNeedSpecial: "special characters",
+        appearance: "Appearance",
+        darkMode: "Dark Mode",
+        manageCategories: "Manage Categories",
+        addCategoryPlaceholder: "Category name",
+        categoryExists: "Category already exists",
+        categoryAdded: "Category added!",
+        categoryRemoved: "Category removed",
+        resetCategories: "Reset to defaults",
+        categoriesReset: "Categories reset to defaults",
+        previous: "Previous",
+        next: "Next",
+        pageOf: "Page {current} of {total}",
+        itemsPerPage: "Per page",
     },
     fr: {
         // Header
@@ -235,6 +248,19 @@ const translations = {
         passwordNeedUppercase: "lettres majuscules",
         passwordNeedNumbers: "chiffres",
         passwordNeedSpecial: "caractères spéciaux",
+        appearance: "Apparence",
+        darkMode: "Mode Sombre",
+        manageCategories: "Gérer les Catégories",
+        addCategoryPlaceholder: "Nom de la catégorie",
+        categoryExists: "La catégorie existe déjà",
+        categoryAdded: "Catégorie ajoutée!",
+        categoryRemoved: "Catégorie supprimée",
+        resetCategories: "Réinitialiser par défaut",
+        categoriesReset: "Catégories réinitialisées par défaut",
+        previous: "Précédent",
+        next: "Suivant",
+        pageOf: "Page {current} sur {total}",
+        itemsPerPage: "Par page",
     },
     ja: {
         // Header
@@ -353,6 +379,19 @@ const translations = {
         passwordNeedUppercase: "大文字",
         passwordNeedNumbers: "数字",
         passwordNeedSpecial: "特殊文字",
+        appearance: "外観",
+        darkMode: "ダークモード",
+        manageCategories: "カテゴリー管理",
+        addCategoryPlaceholder: "カテゴリー名",
+        categoryExists: "カテゴリーは既に存在します",
+        categoryAdded: "カテゴリーが追加されました！",
+        categoryRemoved: "カテゴリーが削除されました",
+        resetCategories: "デフォルトにリセット",
+        categoriesReset: "カテゴリーがデフォルトにリセットされました",
+        previous: "前へ",
+        next: "次へ",
+        pageOf: "ページ {current} / {total}",
+        itemsPerPage: "表示件数",
     },
 }; // Currency configuration
 const currencies = {
@@ -395,6 +434,9 @@ class ExpenseTracker {
             field: "date",
             order: "desc"
         }; // Default sort: newest first
+        this.currentPage = 1;
+        this.pageSize = parseInt(localStorage.getItem("expenseTrackerPageSize")) || 20;
+        this.customCategories = this.loadCustomCategories();
         this.syncManager = new SyncManager(this);
         this.init();
     } // Language management methods
@@ -899,7 +941,9 @@ class ExpenseTracker {
         this.initializeCurrencySelector();
         this.updateAllTexts(); // Apply translations on initial load
         this.initializeSettingsModal();
-        this.initializeEditModal(); // Clean up on page unload
+        this.initializeEditModal();
+        this.initializeTheme();
+        this.initializeCustomCategoriesUI(); // Clean up on page unload
         window.addEventListener("beforeunload", () => {
             this.destroyAllCharts();
             if (this.renderTimeout) {
@@ -1585,28 +1629,55 @@ class ExpenseTracker {
     renderExpenseHistory(filteredExpenses = null) {
         const expenseList = document.getElementById("expenseList");
         const historyTotal = document.getElementById("historyTotal");
+        const paginationControls = document.getElementById("paginationControls");
         const expenses = filteredExpenses || this.sortExpenses(this.expenses);
         const totalAmount = expenses.reduce((s, e) => s + e.amount, 0);
         historyTotal.textContent = this.formatCurrency(totalAmount);
         if (!expenses.length) {
             expenseList.innerHTML = `<div class="empty-state"><h3>${this.t("noExpenses")}</h3></div>`;
+            if (paginationControls) paginationControls.style.display = "none";
             return;
         }
-        const categories = this.getCategories(); // build DOM safely with a fragment (no inline JS)
+        // Pagination
+        const totalPages = Math.ceil(expenses.length / this.pageSize);
+        if (this.currentPage > totalPages) this.currentPage = totalPages;
+        if (this.currentPage < 1) this.currentPage = 1;
+        const startIdx = (this.currentPage - 1) * this.pageSize;
+        const pageExpenses = expenses.slice(startIdx, startIdx + this.pageSize);
+        const categories = this.getCategories();
         const frag = document.createDocumentFragment();
-        expenses.forEach((e) => {
+        pageExpenses.forEach((e) => {
             const category = categories[e.category];
             const categoryDisplay = category ?
                 `${category.emoji} ${category.translations[this.currentLanguage]}` :
                 e.category;
             const item = document.createElement("div");
             item.className = "expense-item";
-            item.dataset.id = String(e.id); // attribute, not JS
+            item.dataset.id = String(e.id);
             item.innerHTML = `        <div class="expense-info">            <div class="expense-description">${this.escapeHtml(e.description || "")}</div>            <div class="expense-details">            <span class="expense-detail-item expense-date">📅 ${this.formatDateForUI(e.date)}</span>            <span class="expense-detail-item expense-category">${this.escapeHtml(categoryDisplay || "")}</span>            <span class="expense-detail-item expense-member">👤 ${this.escapeHtml(e.paidBy || "")}</span>            </div>        </div>        <div class="expense-amount">${this.formatCurrency(e.amount)}</div>        <div class="expense-actions">            <button class="btn btn-edit btn-small" data-action="edit">${this.t("editBtn")}</button>            <button class="btn btn-danger btn-small" data-action="delete">${this.t("deleteBtn")}</button>        </div>        `;
             frag.appendChild(item);
         });
         expenseList.innerHTML = "";
-        expenseList.appendChild(frag); // one-time delegated click binding
+        expenseList.appendChild(frag);
+        // Pagination controls
+        if (paginationControls) {
+            if (totalPages > 1) {
+                const pageLabel = this.t("pageOf").replace("{current}", this.currentPage).replace("{total}", totalPages);
+                paginationControls.innerHTML = `<button id="prevPage" ${this.currentPage <= 1 ? "disabled" : ""}>${this.t("previous")}</button><span class="pagination-info">${pageLabel}</span><button id="nextPage" ${this.currentPage >= totalPages ? "disabled" : ""}>${this.t("next")}</button><span class="page-size-selector"><span>${this.t("itemsPerPage")}:</span><select id="pageSizeSelect"><option value="10" ${this.pageSize === 10 ? "selected" : ""}>10</option><option value="20" ${this.pageSize === 20 ? "selected" : ""}>20</option><option value="50" ${this.pageSize === 50 ? "selected" : ""}>50</option><option value="100" ${this.pageSize === 100 ? "selected" : ""}>100</option></select></span>`;
+                paginationControls.style.display = "flex";
+                paginationControls.querySelector("#prevPage").addEventListener("click", () => { this.currentPage--; this.applyFilters(); });
+                paginationControls.querySelector("#nextPage").addEventListener("click", () => { this.currentPage++; this.applyFilters(); });
+                paginationControls.querySelector("#pageSizeSelect").addEventListener("change", (ev) => {
+                    this.pageSize = parseInt(ev.target.value);
+                    localStorage.setItem("expenseTrackerPageSize", this.pageSize);
+                    this.currentPage = 1;
+                    this.applyFilters();
+                });
+            } else {
+                paginationControls.style.display = "none";
+            }
+        }
+        // one-time delegated click binding
         if (!this._historyBound) {
             expenseList.addEventListener("click", (ev) => {
                 const btn = ev.target.closest("button[data-action]");
@@ -1695,7 +1766,8 @@ class ExpenseTracker {
         document.getElementById("categoryFilter").value = "";
         document.getElementById("memberFilter").value = "";
         document.getElementById("historyStartDate").value = "";
-        document.getElementById("historyEndDate").value = ""; // Reset sort to default (date descending)
+        document.getElementById("historyEndDate").value = "";
+        this.currentPage = 1; // Reset sort to default (date descending)
         this.currentSort = {
             field: "date",
             order: "desc"
@@ -1705,108 +1777,138 @@ class ExpenseTracker {
             .forEach((btn) => btn.classList.remove("active"));
         document.getElementById("sortDateDesc").classList.add("active");
         this.renderExpenseHistory();
-    } // Get categories configuration
+    } // Get categories configuration (defaults + custom)
     getCategories() {
+        const cats = { ...this.getDefaultCategories() };
+        (this.customCategories || []).forEach((c) => {
+            if (!cats[c.name]) {
+                cats[c.name] = {
+                    value: c.name,
+                    emoji: c.emoji || "📌",
+                    translations: { en: c.name, fr: c.name, ja: c.name },
+                };
+            }
+        });
+        return cats;
+    }
+    // ==================== Dark Mode ====================
+    initializeTheme() {
+        const saved = localStorage.getItem("expenseTrackerTheme");
+        const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+        const theme = saved || (prefersDark ? "dark" : "light");
+        this.setTheme(theme, false);
+        const toggle = document.getElementById("darkModeToggle");
+        if (toggle) {
+            toggle.checked = theme === "dark";
+            toggle.addEventListener("change", () => {
+                this.setTheme(toggle.checked ? "dark" : "light", true);
+            });
+        }
+    }
+    setTheme(theme, save = true) {
+        document.documentElement.setAttribute("data-theme", theme);
+        if (save) {
+            localStorage.setItem("expenseTrackerTheme", theme);
+        }
+        const toggle = document.getElementById("darkModeToggle");
+        if (toggle) toggle.checked = theme === "dark";
+        // Update chart colors if on dashboard
+        if (this.currentTab === "dashboard") {
+            this.safeRenderCharts();
+        }
+    }
+    // ==================== Custom Categories ====================
+    loadCustomCategories() {
+        try {
+            const saved = localStorage.getItem("expenseTrackerCustomCategories");
+            return saved ? JSON.parse(saved) : [];
+        } catch {
+            return [];
+        }
+    }
+    saveCustomCategories() {
+        localStorage.setItem("expenseTrackerCustomCategories", JSON.stringify(this.customCategories));
+    }
+    initializeCustomCategoriesUI() {
+        this.renderCustomCategoryList();
+        const addBtn = document.getElementById("addCategoryBtn");
+        const nameInput = document.getElementById("newCategoryName");
+        const emojiInput = document.getElementById("newCategoryEmoji");
+        const resetBtn = document.getElementById("resetCategoriesBtn");
+        if (addBtn) {
+            addBtn.addEventListener("click", () => {
+                const name = nameInput.value.trim();
+                const emoji = emojiInput.value.trim() || "📌";
+                if (!name) return;
+                const existing = this.getDefaultCategories();
+                if (existing[name] || this.customCategories.find((c) => c.name === name)) {
+                    this.showToast(this.t("categoryExists"), "error");
+                    return;
+                }
+                this.customCategories.push({ name, emoji });
+                this.saveCustomCategories();
+                nameInput.value = "";
+                emojiInput.value = "";
+                this.renderCustomCategoryList();
+                this.populateCategoryDropdown();
+                this.setupFilters();
+                this.showToast(this.t("categoryAdded"));
+            });
+            nameInput.addEventListener("keypress", (e) => {
+                if (e.key === "Enter") addBtn.click();
+            });
+        }
+        if (resetBtn) {
+            resetBtn.addEventListener("click", () => {
+                this.customCategories = [];
+                this.saveCustomCategories();
+                this.renderCustomCategoryList();
+                this.populateCategoryDropdown();
+                this.setupFilters();
+                this.showToast(this.t("categoriesReset"));
+            });
+        }
+    }
+    renderCustomCategoryList() {
+        const list = document.getElementById("customCategoryList");
+        if (!list) return;
+        if (this.customCategories.length === 0) {
+            list.innerHTML = '<div style="font-size:13px;color:#999;padding:4px 0;">No custom categories</div>';
+            return;
+        }
+        list.innerHTML = "";
+        this.customCategories.forEach((cat, idx) => {
+            const item = document.createElement("div");
+            item.className = "category-item";
+            item.innerHTML = `<span>${this.escapeHtml(cat.emoji)} ${this.escapeHtml(cat.name)}</span>`;
+            const removeBtn = document.createElement("button");
+            removeBtn.className = "btn-remove";
+            removeBtn.textContent = "×";
+            removeBtn.addEventListener("click", () => {
+                this.customCategories.splice(idx, 1);
+                this.saveCustomCategories();
+                this.renderCustomCategoryList();
+                this.populateCategoryDropdown();
+                this.setupFilters();
+                this.showToast(this.t("categoryRemoved"));
+            });
+            item.appendChild(removeBtn);
+            list.appendChild(item);
+        });
+    }
+    getDefaultCategories() {
         return {
-            Food: {
-                value: "Food",
-                emoji: "🍕",
-                translations: {
-                    en: "Food",
-                    fr: "Nourriture",
-                    ja: "食費"
-                },
-            },
-            Transportation: {
-                value: "Transportation",
-                emoji: "🚗",
-                translations: {
-                    en: "Transportation",
-                    fr: "Transport",
-                    ja: "交通費"
-                },
-            },
-            Shopping: {
-                value: "Shopping",
-                emoji: "🛍️",
-                translations: {
-                    en: "Shopping",
-                    fr: "Shopping",
-                    ja: "ショッピング"
-                },
-            },
-            Entertainment: {
-                value: "Entertainment",
-                emoji: "🎬",
-                translations: {
-                    en: "Entertainment",
-                    fr: "Divertissement",
-                    ja: "娯楽"
-                },
-            },
-            Utilities: {
-                value: "Utilities",
-                emoji: "💡",
-                translations: {
-                    en: "Utilities",
-                    fr: "Services Publics",
-                    ja: "光熱費"
-                },
-            },
-            Healthcare: {
-                value: "Healthcare",
-                emoji: "🏥",
-                translations: {
-                    en: "Healthcare",
-                    fr: "Santé",
-                    ja: "医療"
-                },
-            },
-            Education: {
-                value: "Education",
-                emoji: "📚",
-                translations: {
-                    en: "Education",
-                    fr: "Éducation",
-                    ja: "教育"
-                },
-            },
-            Travel: {
-                value: "Travel",
-                emoji: "✈️",
-                translations: {
-                    en: "Travel",
-                    fr: "Voyage",
-                    ja: "旅行"
-                },
-            },
-            "Personal Care": {
-                value: "Personal Care",
-                emoji: "💅",
-                translations: {
-                    en: "Personal Care",
-                    fr: "Soins Personnels",
-                    ja: "美容・身だしなみ",
-                },
-            },
-            Housing: {
-                value: "Housing",
-                emoji: "🏡",
-                translations: {
-                    en: "Housing",
-                    fr: "Logement",
-                    ja: "住居"
-                },
-            },
-            Other: {
-                value: "Other",
-                emoji: "📦",
-                translations: {
-                    en: "Other",
-                    fr: "Autre",
-                    ja: "その他"
-                },
-            },
+            Food: { value: "Food", emoji: "🍕", translations: { en: "Food", fr: "Nourriture", ja: "食費" } },
+            Transportation: { value: "Transportation", emoji: "🚗", translations: { en: "Transportation", fr: "Transport", ja: "交通費" } },
+            Shopping: { value: "Shopping", emoji: "🛍️", translations: { en: "Shopping", fr: "Shopping", ja: "ショッピング" } },
+            Entertainment: { value: "Entertainment", emoji: "🎬", translations: { en: "Entertainment", fr: "Divertissement", ja: "娯楽" } },
+            Utilities: { value: "Utilities", emoji: "💡", translations: { en: "Utilities", fr: "Services Publics", ja: "光熱費" } },
+            Healthcare: { value: "Healthcare", emoji: "🏥", translations: { en: "Healthcare", fr: "Santé", ja: "医療" } },
+            Education: { value: "Education", emoji: "📚", translations: { en: "Education", fr: "Éducation", ja: "教育" } },
+            Travel: { value: "Travel", emoji: "✈️", translations: { en: "Travel", fr: "Voyage", ja: "旅行" } },
+            "Personal Care": { value: "Personal Care", emoji: "💅", translations: { en: "Personal Care", fr: "Soins Personnels", ja: "美容・身だしなみ" } },
+            Housing: { value: "Housing", emoji: "🏡", translations: { en: "Housing", fr: "Logement", ja: "住居" } },
+            Other: { value: "Other", emoji: "📦", translations: { en: "Other", fr: "Autre", ja: "その他" } },
         };
     }
     exportData() {
@@ -2232,7 +2334,7 @@ class ExpenseTracker {
             languageSection.innerHTML = `🌐 ${this.t("language")}`;
         }
         const currencySection = document.querySelector(
-            "#settingsModal .settings-section:last-child h3",
+            "#settingsModal .settings-section:nth-child(2) h3",
         );
         if (currencySection) {
             currencySection.innerHTML = `💰 ${this.t("currency")}`;
@@ -2245,7 +2347,19 @@ class ExpenseTracker {
             if (firstOption) {
                 firstOption.textContent = this.t("selectCurrency");
             }
-        } // Update save button
+        } // Update appearance section
+        const appearanceLabel = document.getElementById("appearanceLabel");
+        if (appearanceLabel) appearanceLabel.textContent = this.t("appearance");
+        const darkModeLabel = document.getElementById("darkModeLabel");
+        if (darkModeLabel) darkModeLabel.textContent = this.t("darkMode");
+        // Update category management section
+        const manageCategoriesLabel = document.getElementById("manageCategoriesLabel");
+        if (manageCategoriesLabel) manageCategoriesLabel.textContent = this.t("manageCategories");
+        const newCategoryName = document.getElementById("newCategoryName");
+        if (newCategoryName) newCategoryName.placeholder = this.t("addCategoryPlaceholder");
+        const resetCategoriesBtn = document.getElementById("resetCategoriesBtn");
+        if (resetCategoriesBtn) resetCategoriesBtn.textContent = this.t("resetCategories");
+        // Update save button
         const saveBtn = document.getElementById("saveSettings");
         if (saveBtn) {
             saveBtn.textContent = this.t("saveSettings");
