@@ -24,15 +24,8 @@ export class SyncManager extends BaseSyncManager {
                 ? String(expense.generatedFromId)
                 : "",
             isRecurringTemplate: Boolean(expense.isRecurringTemplate),
+            isGeneratedRecurring: Boolean(expense.isGeneratedRecurring),
         };
-    }
-
-    async verifyOTP(email, otp) {
-        const data = await super.verifyOTP(email, otp);
-        if (data.user?.settings) {
-            this.tracker.applyRemoteSettings(data.user.settings);
-        }
-        return data;
     }
 
     async sync() {

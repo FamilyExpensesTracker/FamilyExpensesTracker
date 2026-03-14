@@ -323,9 +323,9 @@ export class ExpenseTracker extends BaseExpenseTracker {
         });
     }
 
-    saveCustomCategories() {
-        super.saveCustomCategories();
-        this.cleanupBudgetsForUnknownCategories();
+    saveCustomCategories(options = {}) {
+        super.saveCustomCategories(options);
+        this.cleanupBudgetsForUnknownCategories(options);
         this.renderBudgetSettings();
         this.renderBudgetOverview();
     }
@@ -339,16 +339,20 @@ export class ExpenseTracker extends BaseExpenseTracker {
     }
 
     normalizeExpense(expense) {
+        const generatedFromId = expense.generatedFromId
+            ? String(expense.generatedFromId)
+            : "";
         const normalized = {
             ...expense,
             recurrence: this.normalizeRecurrence(expense.recurrence || "none"),
             recurrenceEnd: this.normalizeDateValue(expense.recurrenceEnd),
             seriesId: expense.seriesId ? String(expense.seriesId) : "",
-            generatedFromId: expense.generatedFromId
-                ? String(expense.generatedFromId)
-                : "",
+            generatedFromId,
             isRecurringTemplate: Boolean(expense.isRecurringTemplate),
-            isGeneratedRecurring: Boolean(expense.isGeneratedRecurring),
+            isGeneratedRecurring: Boolean(
+                expense.isGeneratedRecurring ||
+                    (!expense.isRecurringTemplate && generatedFromId),
+            ),
         };
 
         if (normalized.recurrence === "none") {
@@ -375,11 +379,14 @@ export class ExpenseTracker extends BaseExpenseTracker {
         }
     }
 
-    saveMonthlyBudgets() {
+    saveMonthlyBudgets(options = {}) {
         localStorage.setItem(
             MONTHLY_BUDGETS_KEY,
             JSON.stringify(this.monthlyBudgets),
         );
+        if (options.touch !== false) {
+            this.touchSettingsModified();
+        }
     }
 
     normalizeBudgetValue(value) {
@@ -405,7 +412,7 @@ export class ExpenseTracker extends BaseExpenseTracker {
         return normalized;
     }
 
-    cleanupBudgetsForUnknownCategories() {
+    cleanupBudgetsForUnknownCategories(options = {}) {
         const validCategories = new Set(
             Object.values(this.getCategories()).map((category) => category.value),
         );
@@ -416,7 +423,7 @@ export class ExpenseTracker extends BaseExpenseTracker {
             }
         });
 
-        this.saveMonthlyBudgets();
+        this.saveMonthlyBudgets(options);
     }
 
     buildSyncSettings() {
@@ -428,16 +435,28 @@ export class ExpenseTracker extends BaseExpenseTracker {
                 emoji: String(category.emoji || "").trim() || "+",
             })),
             monthlyBudgets: this.normalizeBudgetMap(this.monthlyBudgets),
+            ...this.getSettingsSyncMetadata(),
         };
     }
 
     applyRemoteSettings(settings = {}) {
+        const remoteSettingsMs = this.normalizeOptionalTimestampMs(
+            settings.lastModifiedMs ?? settings.lastModified ?? null,
+        );
+        const localSettingsMs = this.getSettingsLastModifiedMs();
+        if (
+            (remoteSettingsMs > 0 && remoteSettingsMs < localSettingsMs) ||
+            (remoteSettingsMs === 0 && localSettingsMs > 0)
+        ) {
+            return false;
+        }
+
         if (settings.language && translations[settings.language]) {
-            this.setLanguage(settings.language);
+            this.setLanguage(settings.language, { touch: false });
         }
 
         if (settings.currency && currencies[settings.currency]) {
-            this.setCurrency(settings.currency);
+            this.setCurrency(settings.currency, { touch: false });
         }
 
         if (Array.isArray(settings.customCategories)) {
@@ -451,21 +470,30 @@ export class ExpenseTracker extends BaseExpenseTracker {
                     (category) =>
                         category.name && !seen.has(category.name) && seen.add(category.name),
                 );
-            super.saveCustomCategories();
+            super.saveCustomCategories({ touch: false });
             this.renderCustomCategoryList();
             this.populateCategoryDropdown();
             this.populateEditCategoryDropdown();
             this.setupFilters();
-            this.cleanupBudgetsForUnknownCategories();
+            this.cleanupBudgetsForUnknownCategories({ touch: false });
         }
 
-        if (settings.monthlyBudgets && typeof settings.monthlyBudgets === "object") {
+        if (
+            Object.prototype.hasOwnProperty.call(settings, "monthlyBudgets") &&
+            settings.monthlyBudgets &&
+            typeof settings.monthlyBudgets === "object"
+        ) {
             this.monthlyBudgets = this.normalizeBudgetMap(settings.monthlyBudgets);
-            this.cleanupBudgetsForUnknownCategories();
+            this.cleanupBudgetsForUnknownCategories({ touch: false });
+        } else if (Object.prototype.hasOwnProperty.call(settings, "monthlyBudgets")) {
+            this.monthlyBudgets = {};
+            this.saveMonthlyBudgets({ touch: false });
         }
 
         this.renderBudgetSettings();
         this.renderBudgetOverview();
+        this.saveSettingsLastModifiedMs(remoteSettingsMs);
+        return true;
     }
 
     populateRecurrenceSelect(select, selectedValue = "none") {

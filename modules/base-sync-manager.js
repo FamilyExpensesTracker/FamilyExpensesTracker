@@ -107,11 +107,19 @@ export class BaseSyncManager {
         localStorage.setItem("syncAuthToken", this.authToken);
         localStorage.setItem("syncUserEmail", email);
         if (data.user?.settings) {
-            if (data.user.settings.language) {
-                this.tracker.setLanguage(data.user.settings.language);
-            }
-            if (data.user.settings.currency) {
-                this.tracker.setCurrency(data.user.settings.currency);
+            if (typeof this.tracker.applyRemoteSettings === "function") {
+                this.tracker.applyRemoteSettings(data.user.settings);
+            } else {
+                if (data.user.settings.language) {
+                    this.tracker.setLanguage(data.user.settings.language, {
+                        touch: false,
+                    });
+                }
+                if (data.user.settings.currency) {
+                    this.tracker.setCurrency(data.user.settings.currency, {
+                        touch: false,
+                    });
+                }
             }
         }
         return data;

@@ -69,6 +69,9 @@ function normalizeExpenseMetadata($expense) {
     $seriesId = sanitizeExpenseId($expense['seriesId'] ?? null);
     $generatedFromId = sanitizeExpenseId($expense['generatedFromId'] ?? null);
     $isRecurringTemplate = !empty($expense['isRecurringTemplate']) && $recurrence !== 'none';
+    $isGeneratedRecurring =
+        !empty($expense['isGeneratedRecurring']) ||
+        (!$isRecurringTemplate && !empty($generatedFromId));
 
     if ($isRecurringTemplate && !$seriesId) {
         $seriesId = sanitizeExpenseId($expense['id'] ?? null);
@@ -76,6 +79,11 @@ function normalizeExpenseMetadata($expense) {
 
     if ($isRecurringTemplate) {
         $generatedFromId = null;
+        $isGeneratedRecurring = false;
+    }
+
+    if (!$generatedFromId) {
+        $isGeneratedRecurring = false;
     }
 
     return [
@@ -84,6 +92,7 @@ function normalizeExpenseMetadata($expense) {
         'seriesId' => $seriesId ?: '',
         'generatedFromId' => $generatedFromId ?: '',
         'isRecurringTemplate' => $isRecurringTemplate,
+        'isGeneratedRecurring' => $isGeneratedRecurring,
     ];
 }
 
@@ -118,6 +127,7 @@ function buildExpenseResponse($row) {
         'seriesId' => $metadata['seriesId'],
         'generatedFromId' => $metadata['generatedFromId'],
         'isRecurringTemplate' => $metadata['isRecurringTemplate'],
+        'isGeneratedRecurring' => $metadata['isGeneratedRecurring'],
     ];
 }
 
@@ -138,7 +148,7 @@ function sanitizeSettingsPayload($settings) {
         $normalized['currency'] = $currency;
     }
 
-    if (!empty($settings['customCategories']) && is_array($settings['customCategories'])) {
+    if (array_key_exists('customCategories', $settings) && is_array($settings['customCategories'])) {
         $seen = [];
         $customCategories = [];
         foreach ($settings['customCategories'] as $category) {
@@ -162,7 +172,7 @@ function sanitizeSettingsPayload($settings) {
         $normalized['customCategories'] = $customCategories;
     }
 
-    if (!empty($settings['monthlyBudgets']) && is_array($settings['monthlyBudgets'])) {
+    if (array_key_exists('monthlyBudgets', $settings) && is_array($settings['monthlyBudgets'])) {
         $budgets = [];
         foreach ($settings['monthlyBudgets'] as $category => $amount) {
             $safeCategory = substr(trim((string)$category), 0, 50);
@@ -181,7 +191,59 @@ function sanitizeSettingsPayload($settings) {
         $normalized['monthlyBudgets'] = $budgets;
     }
 
+    $lastModifiedMs = normalizeTimestampMs($settings['lastModifiedMs'] ?? ($settings['lastModified'] ?? null));
+    if ($lastModifiedMs !== null) {
+        $normalized['lastModifiedMs'] = max(0, (int)$lastModifiedMs);
+        if ($lastModifiedMs > 0) {
+            $normalized['lastModified'] = isoFromMs($lastModifiedMs);
+        }
+    }
+
     return $normalized;
+}
+
+function hasMeaningfulSettings($settings) {
+    if (!is_array($settings)) {
+        return false;
+    }
+
+    return
+        isset($settings['language']) ||
+        isset($settings['currency']) ||
+        array_key_exists('customCategories', $settings) ||
+        array_key_exists('monthlyBudgets', $settings);
+}
+
+function settingsLastModifiedMs($settings) {
+    if (!is_array($settings)) {
+        return 0;
+    }
+
+    $lastModifiedMs = normalizeTimestampMs($settings['lastModifiedMs'] ?? ($settings['lastModified'] ?? null));
+    return $lastModifiedMs !== null ? max(0, (int)$lastModifiedMs) : 0;
+}
+
+function withSettingsTimestamp($settings, $ms) {
+    if (!is_array($settings)) {
+        return null;
+    }
+
+    $normalizedMs = max(0, (int)$ms);
+    $settings['lastModifiedMs'] = $normalizedMs;
+    if ($normalizedMs > 0) {
+        $settings['lastModified'] = isoFromMs($normalizedMs);
+    } else {
+        unset($settings['lastModified']);
+    }
+
+    return $settings;
+}
+
+function saveUserSettings($conn, $userId, $settings) {
+    $stmt = $conn->prepare('UPDATE users SET settings = :settings WHERE id = :id');
+    $stmt->bindValue(':settings', json_encode($settings, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), SQLITE3_TEXT);
+    $stmt->bindValue(':id', (int)$userId, SQLITE3_INTEGER);
+    $stmt->execute();
 }
 
 $requestId = getRequestId();
@@ -232,7 +294,7 @@ $currentSettings = null;
 if (!empty($user['settings'])) {
     $decodedSettings = json_decode($user['settings'], true);
     if (is_array($decodedSettings)) {
-        $currentSettings = $decodedSettings;
+        $currentSettings = sanitizeSettingsPayload($decodedSettings);
     }
 }
 
@@ -263,11 +325,27 @@ if ($method === 'POST') {
         $conflicts = [];
 
         if ($settingsPayload !== null) {
-            $stmt = $conn->prepare('UPDATE users SET settings = :settings WHERE id = :id');
-            $stmt->bindValue(':settings', json_encode($settingsPayload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), SQLITE3_TEXT);
-            $stmt->bindValue(':id', (int)$userId, SQLITE3_INTEGER);
-            $stmt->execute();
-            $currentSettings = $settingsPayload;
+            $serverHasSettings = hasMeaningfulSettings($currentSettings);
+            $clientHasSettings = hasMeaningfulSettings($settingsPayload);
+            $serverSettingsMs = settingsLastModifiedMs($currentSettings);
+            $clientSettingsMs = settingsLastModifiedMs($settingsPayload);
+
+            if (!$serverHasSettings && $clientHasSettings) {
+                $currentSettings = withSettingsTimestamp(
+                    $settingsPayload,
+                    max($clientSettingsMs, $nowMs)
+                );
+                saveUserSettings($conn, $userId, $currentSettings);
+            } elseif ($clientHasSettings && $clientSettingsMs > $serverSettingsMs) {
+                $currentSettings = withSettingsTimestamp(
+                    $settingsPayload,
+                    max($clientSettingsMs, $nowMs)
+                );
+                saveUserSettings($conn, $userId, $currentSettings);
+            } elseif ($serverHasSettings && $serverSettingsMs <= 0) {
+                $currentSettings = withSettingsTimestamp($currentSettings, $nowMs);
+                saveUserSettings($conn, $userId, $currentSettings);
+            }
         }
 
         if ($lastSyncTimeMs !== null) {
@@ -370,6 +448,7 @@ if ($method === 'POST') {
                             'seriesId' => $metadata['seriesId'],
                             'generatedFromId' => $metadata['generatedFromId'],
                             'isRecurringTemplate' => $metadata['isRecurringTemplate'],
+                            'isGeneratedRecurring' => $metadata['isGeneratedRecurring'],
                         ],
                         'server' => buildExpenseResponse($existing),
                     ];

@@ -199,6 +199,7 @@ try {
     Write-Output 'PASS verify_otp'
 
     $clientNowMs = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+    $initialSettingsMs = $clientNowMs + 1000
     $today = Get-Date -Format 'yyyy-MM-dd'
     $syncResponse = Invoke-ApiCgi -ScriptPath (Join-Path $projectRoot 'api/sync.php') -Method 'POST' -Token $token -Payload @{
         expenses = @(@{
@@ -210,15 +211,99 @@ try {
             paidBy = 'Alice'
             timestamp = [DateTime]::UtcNow.ToString('o')
             lastModifiedMs = $clientNowMs
+            seriesId = 'series-1'
+            generatedFromId = 'template-1'
+            isGeneratedRecurring = $true
         })
         lastSyncTimeMs = $null
         deletedIds = @()
+        settings = @{
+            language = 'ja'
+            currency = 'JPY'
+            customCategories = @()
+            monthlyBudgets = @{}
+            lastModifiedMs = $initialSettingsMs
+        }
     }
-    if ($syncResponse.StatusCode -ne 200 -or -not $syncResponse.Json.success -or -not $syncResponse.Json.data.syncTimeMs) {
+    if (
+        $syncResponse.StatusCode -ne 200 -or
+        -not $syncResponse.Json.success -or
+        -not $syncResponse.Json.data.syncTimeMs -or
+        $syncResponse.Json.data.settings.language -ne 'ja' -or
+        $syncResponse.Json.data.settings.currency -ne 'JPY'
+    ) {
         throw "sync insert failed: status=$($syncResponse.StatusCode), body=$($syncResponse.RawBody)"
     }
     $lastSyncMs = [int64]$syncResponse.Json.data.syncTimeMs
     Write-Output 'PASS sync_insert'
+
+    $staleSettingsResponse = Invoke-ApiCgi -ScriptPath (Join-Path $projectRoot 'api/sync.php') -Method 'POST' -Token $token -Payload @{
+        expenses = @()
+        lastSyncTimeMs = $lastSyncMs
+        deletedIds = @()
+        settings = @{
+            language = 'en'
+            currency = 'USD'
+            customCategories = @()
+            monthlyBudgets = @{}
+            lastModifiedMs = ($initialSettingsMs - 500)
+        }
+    }
+    if (
+        $staleSettingsResponse.StatusCode -ne 200 -or
+        -not $staleSettingsResponse.Json.success -or
+        $staleSettingsResponse.Json.data.settings.language -ne 'ja' -or
+        $staleSettingsResponse.Json.data.settings.currency -ne 'JPY'
+    ) {
+        throw "stale settings should not overwrite server settings: status=$($staleSettingsResponse.StatusCode), body=$($staleSettingsResponse.RawBody)"
+    }
+    Write-Output 'PASS stale_settings_rejected'
+
+    $freshSettingsResponse = Invoke-ApiCgi -ScriptPath (Join-Path $projectRoot 'api/sync.php') -Method 'POST' -Token $token -Payload @{
+        expenses = @()
+        lastSyncTimeMs = $lastSyncMs
+        deletedIds = @()
+        settings = @{
+            language = 'fr'
+            currency = 'EUR'
+            customCategories = @()
+            monthlyBudgets = @{ Food = 200 }
+            lastModifiedMs = ($initialSettingsMs + 500)
+        }
+    }
+    if (
+        $freshSettingsResponse.StatusCode -ne 200 -or
+        -not $freshSettingsResponse.Json.success -or
+        $freshSettingsResponse.Json.data.settings.language -ne 'fr' -or
+        $freshSettingsResponse.Json.data.settings.currency -ne 'EUR'
+    ) {
+        throw "fresh settings should update server settings: status=$($freshSettingsResponse.StatusCode), body=$($freshSettingsResponse.RawBody)"
+    }
+    Write-Output 'PASS fresh_settings_applied'
+
+    $metadataResponse = Invoke-ApiCgi -ScriptPath (Join-Path $projectRoot 'api/sync.php') -Method 'POST' -Token $token -Payload @{
+        expenses = @()
+        lastSyncTimeMs = 0
+        deletedIds = @()
+        settings = @{
+            language = 'fr'
+            currency = 'EUR'
+            customCategories = @()
+            monthlyBudgets = @{ Food = 200 }
+            lastModifiedMs = ($initialSettingsMs + 500)
+        }
+    }
+    $syncedExpense = $metadataResponse.Json.data.serverChanges | Where-Object { $_.id -eq 'expense-1' } | Select-Object -First 1
+    if (
+        $metadataResponse.StatusCode -ne 200 -or
+        -not $metadataResponse.Json.success -or
+        -not $syncedExpense -or
+        -not $syncedExpense.isGeneratedRecurring -or
+        $syncedExpense.generatedFromId -ne 'template-1'
+    ) {
+        throw "generated recurring metadata was not preserved: status=$($metadataResponse.StatusCode), body=$($metadataResponse.RawBody)"
+    }
+    Write-Output 'PASS generated_recurring_roundtrip'
 
     $statusResponse = Invoke-ApiCgi -ScriptPath (Join-Path $projectRoot 'api/sync.php') -Method 'GET' -Token $token
     if ($statusResponse.StatusCode -ne 200 -or -not $statusResponse.Json.success -or [int]$statusResponse.Json.data.expenseCount -lt 1) {

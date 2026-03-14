@@ -1,6 +1,8 @@
 import { translations, currencies } from './translations.js';
 import { SyncManager } from './sync-manager.js';
 
+const SETTINGS_LAST_MODIFIED_KEY = "expenseTrackerSettingsLastModifiedMs";
+
 export class BaseExpenseTracker {
     constructor() {
         this.expenses = this.loadExpenses();
@@ -8,6 +10,7 @@ export class BaseExpenseTracker {
         this.charts = {};
         this.currentLanguage = this.loadLanguage();
         this.currentCurrency = this.loadCurrency();
+        this.settingsLastModifiedMs = this.loadSettingsLastModifiedMs();
         this.isRendering = false;
         this.renderTimeout = null;
         this.selectedPeriod = "30"; // Default to 30 days
@@ -47,18 +50,71 @@ export class BaseExpenseTracker {
         localStorage.setItem("expenseTrackerLanguage", this.currentLanguage);
         document.body.setAttribute("data-lang", this.currentLanguage);
     }
+    normalizeOptionalTimestampMs(value) {
+        if (value === null || value === undefined || value === "") {
+            return 0;
+        }
+        if (typeof value === "number" && Number.isFinite(value)) {
+            return value > 1e12 ? Math.round(value) : Math.round(value * 1000);
+        }
+        if (typeof value === "string" && value.trim() !== "") {
+            const asNumber = Number(value);
+            if (Number.isFinite(asNumber)) {
+                return asNumber > 1e12 ?
+                    Math.round(asNumber) :
+                    Math.round(asNumber * 1000);
+            }
+            const parsed = Date.parse(value);
+            if (!Number.isNaN(parsed)) {
+                return parsed;
+            }
+        }
+        return 0;
+    }
+    loadSettingsLastModifiedMs() {
+        return this.normalizeOptionalTimestampMs(
+            localStorage.getItem(SETTINGS_LAST_MODIFIED_KEY),
+        );
+    }
+    saveSettingsLastModifiedMs(value) {
+        const ms = this.normalizeOptionalTimestampMs(value);
+        this.settingsLastModifiedMs = ms;
+        if (ms > 0) {
+            localStorage.setItem(SETTINGS_LAST_MODIFIED_KEY, String(ms));
+        } else {
+            localStorage.removeItem(SETTINGS_LAST_MODIFIED_KEY);
+        }
+        return ms;
+    }
+    touchSettingsModified(value = Date.now()) {
+        return this.saveSettingsLastModifiedMs(value);
+    }
+    getSettingsLastModifiedMs() {
+        return this.settingsLastModifiedMs || 0;
+    }
+    getSettingsSyncMetadata() {
+        const lastModifiedMs = this.getSettingsLastModifiedMs();
+        return {
+            lastModifiedMs,
+            lastModified: lastModifiedMs > 0 ? new Date(lastModifiedMs).toISOString() : "",
+        };
+    }
     t(key) {
         return (
             translations[this.currentLanguage][key] || translations.en[key] || key
         );
     }
-    setLanguage(lang) {
+    setLanguage(lang, options = {}) {
         if (translations[lang]) {
+            const changed = this.currentLanguage !== lang;
             this.currentLanguage = lang;
             this.saveLanguage();
             this.updateAllTexts();
             this.updateChartLabels();
             this.updateLanguageSelector(lang);
+            if (changed && options.touch !== false) {
+                this.touchSettingsModified();
+            }
         }
     }
     editExpense(id) {
@@ -491,13 +547,17 @@ export class BaseExpenseTracker {
     saveCurrency() {
         localStorage.setItem("expenseTrackerCurrency", this.currentCurrency);
     }
-    setCurrency(code) {
+    setCurrency(code, options = {}) {
         if (currencies[code]) {
+            const changed = this.currentCurrency !== code;
             this.currentCurrency = code;
             this.saveCurrency();
             this.updateAmountStep();
             this.updateAllCurrencyDisplays();
             document.getElementById("currencySelector").value = code;
+            if (changed && options.touch !== false) {
+                this.touchSettingsModified();
+            }
         }
     }
     formatCurrency(amount) {
@@ -1416,8 +1476,11 @@ export class BaseExpenseTracker {
             return [];
         }
     }
-    saveCustomCategories() {
+    saveCustomCategories(options = {}) {
         localStorage.setItem("expenseTrackerCustomCategories", JSON.stringify(this.customCategories));
+        if (options.touch !== false) {
+            this.touchSettingsModified();
+        }
     }
     initializeCustomCategoriesUI() {
         this.renderCustomCategoryList();
