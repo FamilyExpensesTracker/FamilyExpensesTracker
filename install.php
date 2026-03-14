@@ -3,6 +3,23 @@
 
 require_once __DIR__ . '/lib/MigrationRunner.php';
 
+// Guard: refuse to run if already configured (prevents info leak in production).
+// Append ?upgrade=1 to run pending migrations on an existing install.
+$guardPaths = [dirname(__DIR__) . '/private/config.php', __DIR__ . '/private/config.php'];
+$alreadyConfigured = false;
+foreach ($guardPaths as $gp) {
+    if (is_file($gp)) { $alreadyConfigured = true; break; }
+}
+if ($alreadyConfigured && empty($_GET['upgrade'])) {
+    http_response_code(403);
+    echo '<!DOCTYPE html><html><head><title>Already Installed</title></head><body>'
+       . '<h1>Already Installed</h1>'
+       . '<p>Delete <code>install.php</code> from your server for security.</p>'
+       . '<p>To run database migrations on an existing install, visit <code>install.php?upgrade=1</code>.</p>'
+       . '</body></html>';
+    exit;
+}
+
 $errors = [];
 $success = [];
 $isFreshInstall = false;
@@ -17,26 +34,23 @@ function safeHost($value) {
 }
 
 function buildConfigContent($secretKey, $dbPath, $siteUrl, $mailFrom, $logPath) {
-    $dbPath = str_replace('\\', '\\\\', $dbPath);
-    $logPath = str_replace('\\', '\\\\', $logPath);
-
     return "<?php\n"
         . "// Auto-generated configuration file\n"
         . "// Generated on: " . date('Y-m-d H:i:s') . "\n\n"
         . "return [\n"
         . "    'APP_ENV' => 'production',\n"
-        . "    'SECRET_KEY' => '" . addslashes($secretKey) . "',\n"
-        . "    'DB_PATH' => '" . addslashes($dbPath) . "',\n"
-        . "    'MAIL_FROM' => '" . addslashes($mailFrom) . "',\n"
+        . "    'SECRET_KEY' => " . var_export($secretKey, true) . ",\n"
+        . "    'DB_PATH' => " . var_export($dbPath, true) . ",\n"
+        . "    'MAIL_FROM' => " . var_export($mailFrom, true) . ",\n"
         . "    'MAIL_FROM_NAME' => 'Family Expense Tracker',\n"
         . "    'OTP_EXPIRY_MINUTES' => 10,\n"
         . "    'OTP_MAX_ATTEMPTS' => 5,\n"
         . "    'OTP_LOCKOUT_MINUTES' => 15,\n"
         . "    'TOKEN_EXPIRY_DAYS' => 7,\n"
-        . "    'SITE_URL' => '" . addslashes($siteUrl) . "',\n"
+        . "    'SITE_URL' => " . var_export($siteUrl, true) . ",\n"
         . "    'ALLOWED_ORIGINS' => [],\n"
         . "    'TRUSTED_PROXIES' => [],\n"
-        . "    'LOG_PATH' => '" . addslashes($logPath) . "',\n\n"
+        . "    'LOG_PATH' => " . var_export($logPath, true) . ",\n\n"
         . "    // SMTP settings\n"
         . "    'USE_SMTP' => false,\n"
         . "    'SMTP_HOST' => '',\n"

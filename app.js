@@ -108,6 +108,15 @@ const translations = {
         syncSuccess: "Sync completed successfully!",
         syncFailed: "Sync failed. Please try again.",
         syncLogout: "Logout",
+        passwordWeak: "Weak",
+        passwordMedium: "Medium",
+        passwordStrong: "Strong",
+        passwordNeedAdd: "Add",
+        passwordNeedMinLength: "at least 8 characters",
+        passwordNeedLowercase: "lowercase letters",
+        passwordNeedUppercase: "uppercase letters",
+        passwordNeedNumbers: "numbers",
+        passwordNeedSpecial: "special characters",
     },
     fr: {
         // Header
@@ -217,6 +226,15 @@ const translations = {
         syncSuccess: "Synchronisation réussie!",
         syncFailed: "Échec de la synchronisation. Veuillez réessayer.",
         syncLogout: "Déconnexion",
+        passwordWeak: "Faible",
+        passwordMedium: "Moyen",
+        passwordStrong: "Fort",
+        passwordNeedAdd: "Ajouter",
+        passwordNeedMinLength: "au moins 8 caractères",
+        passwordNeedLowercase: "lettres minuscules",
+        passwordNeedUppercase: "lettres majuscules",
+        passwordNeedNumbers: "chiffres",
+        passwordNeedSpecial: "caractères spéciaux",
     },
     ja: {
         // Header
@@ -326,6 +344,15 @@ const translations = {
         syncSuccess: "同期が正常に完了しました！",
         syncFailed: "同期に失敗しました。もう一度お試しください。",
         syncLogout: "ログアウト",
+        passwordWeak: "弱い",
+        passwordMedium: "普通",
+        passwordStrong: "強い",
+        passwordNeedAdd: "追加",
+        passwordNeedMinLength: "8文字以上",
+        passwordNeedLowercase: "小文字",
+        passwordNeedUppercase: "大文字",
+        passwordNeedNumbers: "数字",
+        passwordNeedSpecial: "特殊文字",
     },
 }; // Currency configuration
 const currencies = {
@@ -572,6 +599,9 @@ class ExpenseTracker {
             modal.remove();
         };
         closeBtn.addEventListener("click", closeModal);
+        modal.addEventListener("click", (e) => {
+            if (e.target === modal) closeModal();
+        });
         sendOtpBtn.addEventListener("click", async () => {
             const email = emailInput.value.trim();
             if (!email) {
@@ -1180,6 +1210,7 @@ class ExpenseTracker {
         const monthlyExpenses = this.expenses.filter((expense) => {
             const expenseDate = this.parseDateOnly(expense.date);
             return (
+                expenseDate &&
                 expenseDate.getMonth() === currentMonth &&
                 expenseDate.getFullYear() === currentYear
             );
@@ -1190,7 +1221,7 @@ class ExpenseTracker {
         ); // Yearly total
         const yearlyExpenses = this.expenses.filter((expense) => {
             const expenseDate = this.parseDateOnly(expense.date);
-            return expenseDate.getFullYear() === currentYear;
+            return expenseDate && expenseDate.getFullYear() === currentYear;
         });
         const yearlyTotal = yearlyExpenses.reduce(
             (sum, expense) => sum + expense.amount,
@@ -1199,7 +1230,9 @@ class ExpenseTracker {
         const monthsWithExpenses = new Set();
         this.expenses.forEach((expense) => {
             const date = this.parseDateOnly(expense.date);
-            monthsWithExpenses.add(`${date.getFullYear()}-${date.getMonth()}`);
+            if (date) {
+                monthsWithExpenses.add(`${date.getFullYear()}-${date.getMonth()}`);
+            }
         });
         const avgMonthly =
             monthsWithExpenses.size > 0 ?
@@ -1284,6 +1317,14 @@ class ExpenseTracker {
                             usePointStyle: true
                         },
                     },
+                    tooltip: {
+                        callbacks: {
+                            label: (context) => {
+                                const label = context.label || "";
+                                return `${label}: ${this.formatCurrency(context.raw)}`;
+                            },
+                        },
+                    },
                 },
             },
         });
@@ -1346,7 +1387,12 @@ class ExpenseTracker {
                 plugins: {
                     legend: {
                         display: false
-                    }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: (context) => this.formatCurrency(context.parsed.y),
+                        },
+                    },
                 },
             },
         });
@@ -1401,7 +1447,12 @@ class ExpenseTracker {
                 plugins: {
                     legend: {
                         display: false
-                    }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: (context) => this.formatCurrency(context.parsed.y),
+                        },
+                    },
                 },
             },
         });
@@ -1469,7 +1520,12 @@ class ExpenseTracker {
                 plugins: {
                     legend: {
                         display: false
-                    }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: (context) => this.formatCurrency(context.parsed.y),
+                        },
+                    },
                 },
             },
         });
@@ -1571,11 +1627,12 @@ class ExpenseTracker {
         let categoryOptions = `<option value="">${this.t("allCategories")}</option>`;
         usedCategories.forEach((categoryValue) => {
             const category = allCategories[categoryValue];
+            const safeValue = this.escapeHtml(categoryValue);
             if (category) {
                 const displayName = `${category.emoji} ${category.translations[this.currentLanguage]}`;
-                categoryOptions += `<option value="${categoryValue}">${displayName}</option>`;
+                categoryOptions += `<option value="${safeValue}">${displayName}</option>`;
             } else {
-                // Fallback for categories not in the configuration                categoryOptions += `<option value="${categoryValue}">${categoryValue}</option>`;
+                categoryOptions += `<option value="${safeValue}">${safeValue}</option>`;
             }
         });
         categoryFilter.innerHTML = categoryOptions; // Populate member filter
@@ -1584,7 +1641,7 @@ class ExpenseTracker {
         memberFilter.innerHTML =
             `<option value="">${this.t("allMembers")}</option>` +
             members
-            .map((member) => `<option value="${member}">${member}</option>`)
+            .map((member) => `<option value="${this.escapeHtml(member)}">${this.escapeHtml(member)}</option>`)
             .join(""); // Ensure sort controls are properly initialized
         this.initializeSortControls();
     }
@@ -1882,27 +1939,27 @@ class ExpenseTracker {
         let score = 0;
         let feedback = [];
         if (password.length >= 8) score += 1;
-        else feedback.push("at least 8 characters");
+        else feedback.push(this.t("passwordNeedMinLength"));
         if (/[a-z]/.test(password)) score += 1;
-        else feedback.push("lowercase letters");
+        else feedback.push(this.t("passwordNeedLowercase"));
         if (/[A-Z]/.test(password)) score += 1;
-        else feedback.push("uppercase letters");
+        else feedback.push(this.t("passwordNeedUppercase"));
         if (/[0-9]/.test(password)) score += 1;
-        else feedback.push("numbers");
+        else feedback.push(this.t("passwordNeedNumbers"));
         if (/[^A-Za-z0-9]/.test(password)) score += 1;
-        else feedback.push("special characters");
+        else feedback.push(this.t("passwordNeedSpecial"));
         if (score < 2)
             return {
-                text: "Weak - Add: " + feedback.slice(0, 2).join(", "),
+                text: this.t("passwordWeak") + " - " + this.t("passwordNeedAdd") + ": " + feedback.slice(0, 2).join(", "),
                 class: "weak",
             };
         if (score < 4)
             return {
-                text: "Medium - Add: " + feedback.slice(0, 1).join(", "),
+                text: this.t("passwordMedium") + " - " + this.t("passwordNeedAdd") + ": " + feedback.slice(0, 1).join(", "),
                 class: "medium",
             };
         return {
-            text: "Strong",
+            text: this.t("passwordStrong"),
             class: "strong"
         };
     }
@@ -2425,8 +2482,8 @@ class ExpenseTracker {
         return [...expenses].sort((a, b) => {
             let cmp = 0;
             if (this.currentSort.field === "date") {
-                const A = this.parseDateOnly(a.date);
-                const B = this.parseDateOnly(b.date);
+                const A = this.parseDateOnly(a.date) || new Date(0);
+                const B = this.parseDateOnly(b.date) || new Date(0);
                 cmp = A - B;
             } else if (this.currentSort.field === "amount") {
                 cmp = a.amount - b.amount;
@@ -2615,9 +2672,15 @@ class SyncManager {
         this.isSyncing = true;
         this.updateSyncUI("syncing");
         try {
-            const clientExpenses = this.tracker.expenses.map((expense) =>
-                this.normalizeExpenseForSync(expense),
-            );
+            const clientExpenses = this.tracker.expenses
+                .filter((expense) => {
+                    if (!this.lastSyncTimeMs) return true;
+                    const modMs = this.tracker.parseTimestampMs(
+                        expense.lastModifiedMs ?? expense.lastModified ?? expense.timestamp,
+                    );
+                    return modMs > this.lastSyncTimeMs;
+                })
+                .map((expense) => this.normalizeExpenseForSync(expense));
             const data = await this.requestJson("sync.php", {
                 method: "POST",
                 headers: {

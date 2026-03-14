@@ -17,6 +17,10 @@ try {
     sendError('Database connection failed', 500, $requestId);
 }
 
+if (random_int(1, 100) === 1) {
+    cleanupExpiredRecords($conn);
+}
+
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 $rawInput = file_get_contents('php://input');
 $input = [];

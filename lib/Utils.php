@@ -257,4 +257,15 @@ function logError($message, $context = [], $config = []) {
 function logInfo($message, $context = [], $config = []) {
     logToFile('info', $message, $context, $config);
 }
+
+function cleanupExpiredRecords($conn) {
+    $now = time();
+    try {
+        $conn->exec('DELETE FROM rate_limits WHERE updated_at < ' . ($now - 3600));
+        $conn->exec('DELETE FROM revoked_tokens WHERE expires_at < ' . $now);
+        $conn->exec('DELETE FROM otp_codes WHERE (used = 1 OR expires_at < ' . $now . ') AND created_at < ' . ($now - 86400));
+    } catch (Exception $e) {
+        // Cleanup is best-effort; do not break the request on failure.
+    }
+}
 ?>

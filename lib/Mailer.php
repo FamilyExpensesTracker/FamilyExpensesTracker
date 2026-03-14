@@ -94,8 +94,10 @@ class Mailer {
     }
 
     private function sendSMTP($to, $subject, $body, $headers) {
-        // Placeholder SMTP behavior: until SMTP client is implemented,
-        // fallback to PHP mail().
+        // SMTP transport is not yet implemented. Fall back to PHP mail().
+        // Set USE_SMTP = false in config to suppress this warning.
+        error_log('[FamilyExpenseTracker] WARNING: SMTP configured (host: '
+            . ($this->config['SMTP_HOST'] ?? '') . ') but not implemented. Using PHP mail() as fallback.');
         return $this->sendPHP($to, $subject, $body, $headers);
     }
 }
