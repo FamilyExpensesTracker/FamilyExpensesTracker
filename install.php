@@ -59,33 +59,19 @@ function buildConfigContent($secretKey, $dbPath, $siteUrl, $mailFrom, $logPath) 
 }
 
 $publicPath = __DIR__;
-$candidatePrivatePaths = [
-    dirname($publicPath) . '/private',
-    $publicPath . '/private',
-];
-
 $configPath = null;
 $privatePath = null;
 
-foreach ($candidatePrivatePaths as $candidate) {
-    $candidateConfig = $candidate . '/config.php';
-    if (is_file($candidateConfig)) {
-        $privatePath = $candidate;
-        $configPath = $candidateConfig;
-        break;
-    }
+$privatePath = dirname($publicPath) . '/private';
+$configPath = $privatePath . '/config.php';
+
+if (!is_file($configPath)) {
+    $configPath = null;
 }
 
 if ($configPath === null) {
-    foreach ($candidatePrivatePaths as $candidate) {
-        if (ensureDirectory($candidate)) {
-            $privatePath = $candidate;
-            break;
-        }
-    }
-
-    if ($privatePath === null) {
-        $errors[] = 'Could not create private directory. Please create either ../private or ./private manually.';
+    if (!ensureDirectory($privatePath)) {
+        $errors[] = 'Could not create ../private outside the web root. Create it manually or set FAMILY_EXPENSES_CONFIG_PATH to a secure location.';
     } else {
         $dataPath = $privatePath . '/data';
         $logPath = $privatePath . '/logs';
@@ -218,7 +204,7 @@ if ($privatePath && strpos(str_replace('\\', '/', $privatePath), str_replace('\\
             <li>Delete <code>install.php</code> immediately after successful setup.</li>
             <li>Review and update mail/SMTP settings in <code><?php echo htmlspecialchars((string)$configPath, ENT_QUOTES, 'UTF-8'); ?></code>.</li>
             <li>Set <code>ALLOWED_ORIGINS</code> only if you need cross-origin access.</li>
-            <li>Verify private data/config paths are not publicly accessible.</li>
+            <li>Keep the private directory outside the public web root.</li>
         </ol>
     </div>
 

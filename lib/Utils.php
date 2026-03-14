@@ -142,6 +142,52 @@ function normalizeOrigin($origin) {
     return $scheme . '://' . $host . $port;
 }
 
+function requestScheme($config = []) {
+    $trustedProxies = $config['TRUSTED_PROXIES'] ?? [];
+    if (!is_array($trustedProxies)) {
+        $trustedProxies = [];
+    }
+
+    if (!empty($_SERVER['HTTPS']) && strtolower((string)$_SERVER['HTTPS']) !== 'off') {
+        return 'https';
+    }
+
+    if (($_SERVER['SERVER_PORT'] ?? '') === '443') {
+        return 'https';
+    }
+
+    $remoteAddr = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+    if (!empty($trustedProxies) && isTrustedProxyIp($remoteAddr, $trustedProxies)) {
+        $forwardedProto = trim((string)($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? ''));
+        if ($forwardedProto !== '') {
+            $proto = strtolower(trim(explode(',', $forwardedProto)[0]));
+            if ($proto === 'https' || $proto === 'http') {
+                return $proto;
+            }
+        }
+
+        if (!empty($_SERVER['HTTP_X_FORWARDED_SSL']) && strtolower((string)$_SERVER['HTTP_X_FORWARDED_SSL']) === 'on') {
+            return 'https';
+        }
+    }
+
+    return 'http';
+}
+
+function currentRequestOrigin($config = []) {
+    $siteUrlOrigin = normalizeOrigin((string)($config['SITE_URL'] ?? ''));
+    if ($siteUrlOrigin) {
+        return $siteUrlOrigin;
+    }
+
+    $host = trim((string)($_SERVER['HTTP_HOST'] ?? ''));
+    if ($host === '') {
+        return null;
+    }
+
+    return normalizeOrigin(requestScheme($config) . '://' . $host);
+}
+
 function applyCorsHeaders($config) {
     $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
     $allowedOrigins = $config['ALLOWED_ORIGINS'] ?? [];
@@ -160,9 +206,7 @@ function applyCorsHeaders($config) {
     $normalizedOrigin = normalizeOrigin($origin);
 
     // Always allow same-origin browser requests.
-    $host = $_SERVER['HTTP_HOST'] ?? '';
-    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-    $normalizedCurrentOrigin = normalizeOrigin($scheme . '://' . $host);
+    $normalizedCurrentOrigin = currentRequestOrigin($config);
 
     if ($normalizedOrigin && $normalizedCurrentOrigin && $normalizedOrigin === $normalizedCurrentOrigin) {
         header('Access-Control-Allow-Origin: ' . $origin);

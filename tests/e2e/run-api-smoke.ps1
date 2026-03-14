@@ -20,7 +20,11 @@ function Invoke-ApiCgi {
         [Parameter(Mandatory = $true)][string]$ScriptPath,
         [Parameter(Mandatory = $true)][ValidateSet('GET', 'POST')][string]$Method,
         [object]$Payload = $null,
-        [string]$Token = ''
+        [string]$Token = '',
+        [string]$RequestHost = '127.0.0.1',
+        [string]$RemoteAddr = '127.0.0.1',
+        [string]$Origin = '',
+        [string]$ForwardedProto = ''
     )
 
     $scriptAbsolute = (Resolve-Path $ScriptPath).Path
@@ -43,11 +47,24 @@ function Invoke-ApiCgi {
     $env:REQUEST_URI = $uriPath
     $env:SERVER_PROTOCOL = 'HTTP/1.1'
     $env:GATEWAY_INTERFACE = 'CGI/1.1'
-    $env:SERVER_NAME = '127.0.0.1'
+    $env:SERVER_NAME = (($RequestHost -split ':')[0])
     $env:SERVER_PORT = '80'
-    $env:HTTP_HOST = '127.0.0.1'
-    $env:REMOTE_ADDR = '127.0.0.1'
+    $env:HTTP_HOST = $RequestHost
+    $env:REMOTE_ADDR = $RemoteAddr
     $env:REDIRECT_STATUS = '200'
+    Remove-Item Env:HTTPS -ErrorAction SilentlyContinue
+
+    if ([string]::IsNullOrWhiteSpace($Origin)) {
+        Remove-Item Env:HTTP_ORIGIN -ErrorAction SilentlyContinue
+    } else {
+        $env:HTTP_ORIGIN = $Origin
+    }
+
+    if ([string]::IsNullOrWhiteSpace($ForwardedProto)) {
+        Remove-Item Env:HTTP_X_FORWARDED_PROTO -ErrorAction SilentlyContinue
+    } else {
+        $env:HTTP_X_FORWARDED_PROTO = $ForwardedProto
+    }
 
     if ([string]::IsNullOrWhiteSpace($Token)) {
         Remove-Item Env:HTTP_AUTHORIZATION -ErrorAction SilentlyContinue
@@ -132,9 +149,9 @@ return [
     'OTP_MAX_ATTEMPTS' => 5,
     'OTP_LOCKOUT_MINUTES' => 15,
     'TOKEN_EXPIRY_DAYS' => 7,
-    'SITE_URL' => 'http://127.0.0.1',
+    'SITE_URL' => '',
     'ALLOWED_ORIGINS' => [],
-    'TRUSTED_PROXIES' => [],
+    'TRUSTED_PROXIES' => ['127.0.0.1'],
     'LOG_PATH' => '__LOG_PATH__',
     'USE_SMTP' => false,
     'SMTP_HOST' => '',
@@ -337,6 +354,12 @@ try {
         throw "sync status failed: status=$($statusResponse.StatusCode), body=$($statusResponse.RawBody)"
     }
     Write-Output 'PASS sync_status'
+
+    $proxySameOriginResponse = Invoke-ApiCgi -ScriptPath (Join-Path $projectRoot 'api/sync.php') -Method 'GET' -Token $token -RequestHost 'app.example.test' -RemoteAddr '127.0.0.1' -Origin 'https://app.example.test' -ForwardedProto 'https'
+    if ($proxySameOriginResponse.StatusCode -ne 200 -or -not $proxySameOriginResponse.Json.success) {
+        throw "trusted proxy same-origin request failed: status=$($proxySameOriginResponse.StatusCode), body=$($proxySameOriginResponse.RawBody)"
+    }
+    Write-Output 'PASS trusted_proxy_same_origin'
 
     $logoutResponse = Invoke-ApiCgi -ScriptPath (Join-Path $projectRoot 'api/auth.php') -Method 'POST' -Token $token -Payload @{ action = 'logout' }
     if ($logoutResponse.StatusCode -ne 200 -or -not $logoutResponse.Json.success) {

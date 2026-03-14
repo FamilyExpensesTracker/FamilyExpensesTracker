@@ -1323,6 +1323,99 @@ export class ExpenseTracker extends BaseExpenseTracker {
         }
     }
 
+    collectGeneratedOccurrenceMaxDates() {
+        const maxDates = new Map();
+
+        this.expenses.forEach((expense) => {
+            if (!expense.isGeneratedRecurring) {
+                return;
+            }
+
+            const templateId = String(expense.generatedFromId || "");
+            const occurrenceDate = this.getOccurrenceDate(expense);
+            if (!templateId || !occurrenceDate) {
+                return;
+            }
+
+            const currentMax = maxDates.get(templateId);
+            if (!currentMax || occurrenceDate > currentMax) {
+                maxDates.set(templateId, occurrenceDate);
+            }
+        });
+
+        return maxDates;
+    }
+
+    buildGeneratedOccurrenceDateSet(template, maxOccurrenceDate) {
+        const recurrence = this.normalizeRecurrence(template?.recurrence || "none");
+        const startDate = this.parseDateOnly(template?.date);
+        const maxDate = this.parseDateOnly(maxOccurrenceDate);
+
+        if (!startDate || !maxDate || maxDate <= startDate || recurrence === "none") {
+            return new Set();
+        }
+
+        const seriesEnd = template.recurrenceEnd
+            ? this.parseDateOnly(template.recurrenceEnd)
+            : null;
+        const effectiveMax =
+            seriesEnd && seriesEnd < maxDate ? seriesEnd : maxDate;
+        const excludedDates = new Set(template.excludedDates || []);
+        const validDates = new Set();
+        let occurrenceDate = this.addRecurrenceStep(startDate, recurrence);
+
+        while (occurrenceDate && occurrenceDate <= effectiveMax) {
+            const ymd = this.ymdFromDate(occurrenceDate);
+            if (!excludedDates.has(ymd)) {
+                validDates.add(ymd);
+            }
+
+            occurrenceDate = this.addRecurrenceStep(occurrenceDate, recurrence);
+        }
+
+        return validDates;
+    }
+
+    pruneInvalidGeneratedOccurrences() {
+        const templateMap = new Map(
+            this.expenses
+                .filter(
+                    (expense) =>
+                        expense.isRecurringTemplate &&
+                        this.normalizeRecurrence(expense.recurrence) !== "none",
+                )
+                .map((expense) => [String(expense.id), expense]),
+        );
+        const maxDates = this.collectGeneratedOccurrenceMaxDates();
+        const validDatesByTemplate = new Map();
+
+        maxDates.forEach((maxOccurrenceDate, templateId) => {
+            const template = templateMap.get(templateId);
+            if (!template) {
+                return;
+            }
+
+            validDatesByTemplate.set(
+                templateId,
+                this.buildGeneratedOccurrenceDateSet(template, maxOccurrenceDate),
+            );
+        });
+
+        const beforeCount = this.expenses.length;
+        this.expenses = this.expenses.filter((expense) => {
+            if (!expense.isGeneratedRecurring) {
+                return true;
+            }
+
+            const templateId = String(expense.generatedFromId || "");
+            const occurrenceDate = this.getOccurrenceDate(expense);
+            const validDates = validDatesByTemplate.get(templateId);
+            return Boolean(validDates && occurrenceDate && validDates.has(occurrenceDate));
+        });
+
+        return beforeCount !== this.expenses.length;
+    }
+
     cleanupOrphanedRecurringExpenses() {
         const templateIds = new Set(
             this.expenses
@@ -1344,6 +1437,7 @@ export class ExpenseTracker extends BaseExpenseTracker {
         const horizon = new Date();
         horizon.setDate(horizon.getDate() + RECURRENCE_HORIZON_DAYS);
         let changed = this.cleanupOrphanedRecurringExpenses();
+        changed = this.pruneInvalidGeneratedOccurrences() || changed;
 
         this.expenses
             .filter(

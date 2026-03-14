@@ -1,11 +1,11 @@
 <?php
 // config.example.php
-// Copy this file to private/config.php and customize values for your deployment.
+// Copy this file to ../private/config.php and customize values for your deployment.
 
 return [
     'APP_ENV' => 'production',
     'SECRET_KEY' => 'replace-with-a-strong-random-base64-key',
-    'DB_PATH' => __DIR__ . '/private/data/expenses.db',
+    'DB_PATH' => __DIR__ . '/data/expenses.db',
     'MAIL_FROM' => 'noreply@example.com',
     'MAIL_FROM_NAME' => 'Family Expense Tracker',
     'OTP_EXPIRY_MINUTES' => 10,
@@ -21,7 +21,7 @@ return [
     'TRUSTED_PROXIES' => [],
 
     // Server log directory for API/auth/sync events
-    'LOG_PATH' => __DIR__ . '/private/logs',
+    'LOG_PATH' => __DIR__ . '/logs',
 
     // SMTP settings
     'USE_SMTP' => false,

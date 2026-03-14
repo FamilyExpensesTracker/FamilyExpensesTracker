@@ -5,8 +5,15 @@ function appProjectRoot() {
     return dirname(__DIR__);
 }
 
+function appPrivateRoot() {
+    return dirname(appProjectRoot()) . '/private';
+}
+
+function appPublicPrivateRoot() {
+    return appProjectRoot() . '/private';
+}
+
 function appConfigCandidates() {
-    $root = appProjectRoot();
     $envConfigPath = getenv('FAMILY_EXPENSES_CONFIG_PATH');
 
     $candidates = [];
@@ -14,21 +21,23 @@ function appConfigCandidates() {
         $candidates[] = $envConfigPath;
     }
 
-    // Preferred path (works for both root and subdirectory deployments)
-    $candidates[] = $root . '/private/config.php';
+    // Default to a private directory outside the public app root.
+    $candidates[] = appPrivateRoot() . '/config.php';
 
-    // Optional fallback for setups that keep private/ one level above
-    $candidates[] = dirname($root) . '/private/config.php';
+    // Legacy public-root private/ support requires explicit opt-in.
+    if (getenv('FAMILY_EXPENSES_ALLOW_PUBLIC_PRIVATE') === '1') {
+        $candidates[] = appPublicPrivateRoot() . '/config.php';
+    }
 
     return array_values(array_unique($candidates));
 }
 
 function appDefaultDataPath() {
-    return appProjectRoot() . '/private/data/expenses.db';
+    return appPrivateRoot() . '/data/expenses.db';
 }
 
 function appDefaultLogPath() {
-    return appProjectRoot() . '/private/logs';
+    return appPrivateRoot() . '/logs';
 }
 
 function appDevConfig() {
@@ -110,6 +119,8 @@ function loadAppConfig() {
         return normalizeAppConfig(appDevConfig());
     }
 
-    throw new RuntimeException('Configuration file not found. Run install.php or set FAMILY_EXPENSES_CONFIG_PATH.');
+    throw new RuntimeException(
+        'Configuration file not found. Run install.php, move legacy ./private/config.php to ../private/config.php, or set FAMILY_EXPENSES_CONFIG_PATH. Set FAMILY_EXPENSES_ALLOW_PUBLIC_PRIVATE=1 only for legacy public-root private/ setups.'
+    );
 }
 ?>
