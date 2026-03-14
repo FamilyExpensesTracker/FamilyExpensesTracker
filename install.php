@@ -3,26 +3,32 @@
 
 require_once __DIR__ . '/lib/MigrationRunner.php';
 
-// Guard: refuse to run if already configured (prevents info leak in production).
-$guardPaths = [dirname(__DIR__) . '/private/config.php', __DIR__ . '/private/config.php'];
-$alreadyConfigured = false;
-foreach ($guardPaths as $gp) {
-    if (is_file($gp)) { $alreadyConfigured = true; break; }
-}
-if ($alreadyConfigured) {
-    http_response_code(403);
-    echo '<!DOCTYPE html><html><head><title>Already Installed</title></head><body>'
-       . '<h1>Already Installed</h1>'
-       . '<p>Delete <code>install.php</code> from your server for security.</p>'
-       . '</body></html>';
-    exit;
-}
-
 $errors = [];
 $success = [];
 
 function ensureDirectory($path) {
     return is_dir($path) || @mkdir($path, 0755, true);
+}
+
+function normalizeInstallPath($path) {
+    $resolved = realpath($path);
+    $normalized = str_replace('\\', '/', $resolved !== false ? $resolved : (string)$path);
+    return rtrim($normalized, '/');
+}
+
+function detectPrivatePath($publicPath) {
+    $normalizedPublicPath = normalizeInstallPath($publicPath);
+    $documentRoot = normalizeInstallPath((string)($_SERVER['DOCUMENT_ROOT'] ?? ''));
+
+    if (
+        $normalizedPublicPath !== '' &&
+        $documentRoot !== '' &&
+        strpos($normalizedPublicPath . '/', $documentRoot . '/') === 0
+    ) {
+        return dirname($documentRoot) . '/private';
+    }
+
+    return dirname($normalizedPublicPath !== '' ? $normalizedPublicPath : (string)$publicPath) . '/private';
 }
 
 function safeHost($value) {
@@ -58,11 +64,29 @@ function buildConfigContent($secretKey, $dbPath, $siteUrl, $mailFrom, $logPath) 
         . "];\n";
 }
 
+// Guard: refuse to run if already configured (prevents info leak in production).
+$guardPaths = array_values(array_unique([
+    detectPrivatePath(__DIR__) . '/config.php',
+    __DIR__ . '/private/config.php',
+]));
+$alreadyConfigured = false;
+foreach ($guardPaths as $gp) {
+    if (is_file($gp)) { $alreadyConfigured = true; break; }
+}
+if ($alreadyConfigured) {
+    http_response_code(403);
+    echo '<!DOCTYPE html><html><head><title>Already Installed</title></head><body>'
+       . '<h1>Already Installed</h1>'
+       . '<p>Delete <code>install.php</code> from your server for security.</p>'
+       . '</body></html>';
+    exit;
+}
+
 $publicPath = __DIR__;
 $configPath = null;
 $privatePath = null;
 
-$privatePath = dirname($publicPath) . '/private';
+$privatePath = detectPrivatePath($publicPath);
 $configPath = $privatePath . '/config.php';
 
 if (!is_file($configPath)) {
@@ -71,7 +95,7 @@ if (!is_file($configPath)) {
 
 if ($configPath === null) {
     if (!ensureDirectory($privatePath)) {
-        $errors[] = 'Could not create ../private outside the web root. Create it manually or set FAMILY_EXPENSES_CONFIG_PATH to a secure location.';
+        $errors[] = 'Could not create the private directory outside the public document root. Create it manually or set FAMILY_EXPENSES_CONFIG_PATH to a secure location.';
     } else {
         $dataPath = $privatePath . '/data';
         $logPath = $privatePath . '/logs';

@@ -1,6 +1,6 @@
 <?php
 // config.example.php
-// Copy this file to ../private/config.php and customize values for your deployment.
+// Copy this file into the private directory created by install.php and customize values for your deployment.
 
 return [
     'APP_ENV' => 'production',

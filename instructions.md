@@ -33,7 +33,7 @@ Example root deployment:
 - Confirm migration step completes
 - Delete `install.php` immediately after success
 
-3. Configure `../private/config.php`:
+3. Configure the generated private config file outside the public document root:
 - Set `SITE_URL`
 - Configure SMTP values if email delivery is required
 - Keep `ALLOWED_ORIGINS` empty for same-origin; add explicit origins only when needed

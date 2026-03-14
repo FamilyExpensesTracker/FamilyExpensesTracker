@@ -5,7 +5,28 @@ function appProjectRoot() {
     return dirname(__DIR__);
 }
 
+function appNormalizePath($path) {
+    if (!is_string($path) || $path === '') {
+        return '';
+    }
+
+    $resolved = realpath($path);
+    $normalized = str_replace('\\', '/', $resolved !== false ? $resolved : $path);
+    return rtrim($normalized, '/');
+}
+
+function appDocumentRoot() {
+    return appNormalizePath((string)($_SERVER['DOCUMENT_ROOT'] ?? ''));
+}
+
 function appPrivateRoot() {
+    $projectRoot = appNormalizePath(appProjectRoot());
+    $documentRoot = appDocumentRoot();
+
+    if ($projectRoot !== '' && $documentRoot !== '' && strpos($projectRoot . '/', $documentRoot . '/') === 0) {
+        return dirname($documentRoot) . '/private';
+    }
+
     return dirname(appProjectRoot()) . '/private';
 }
 
@@ -120,7 +141,7 @@ function loadAppConfig() {
     }
 
     throw new RuntimeException(
-        'Configuration file not found. Run install.php, move legacy ./private/config.php to ../private/config.php, or set FAMILY_EXPENSES_CONFIG_PATH. Set FAMILY_EXPENSES_ALLOW_PUBLIC_PRIVATE=1 only for legacy public-root private/ setups.'
+        'Configuration file not found. Run install.php, move any legacy public-root config into the private directory created by the installer, or set FAMILY_EXPENSES_CONFIG_PATH. Set FAMILY_EXPENSES_ALLOW_PUBLIC_PRIVATE=1 only for legacy public-root private/ setups.'
     );
 }
 ?>
