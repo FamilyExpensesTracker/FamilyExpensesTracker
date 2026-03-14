@@ -417,18 +417,7 @@ export class BaseExpenseTracker {
         document.querySelector(".stat-card:nth-child(3) h3").textContent =
             this.t("totalExpenses");
         document.querySelector(".stat-card:nth-child(4) h3").textContent =
-            this.t("avgMonthly"); // Update chart titles
-        document.querySelector(".chart-card:nth-child(1) h3").textContent =
-            this.t("expensesByCategory");
-        document.querySelector(".chart-card:nth-child(2) h3").textContent = this.t(
-            "monthlySpendingTrend",
-        );
-        document.querySelector(
-            ".chart-container:nth-child(3) .chart-card:nth-child(1) h3",
-        ).textContent = this.t("spendingByMember");
-        document.querySelector(
-            ".chart-container:nth-child(3) .chart-card:nth-child(2) h3",
-        ).textContent = this.t("dailySpending"); // Update history section
+            this.t("avgMonthly"); // Update history section
         document.querySelector("#history h2").textContent =
             this.t("expenseHistory");
         document.getElementById("clearFilters").textContent =

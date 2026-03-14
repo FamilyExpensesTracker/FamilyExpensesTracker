@@ -342,12 +342,17 @@ export class ExpenseTracker extends BaseExpenseTracker {
         const generatedFromId = expense.generatedFromId
             ? String(expense.generatedFromId)
             : "";
+        const occurrenceDate = this.normalizeDateValue(
+            expense.occurrenceDate || "",
+        );
         const normalized = {
             ...expense,
             recurrence: this.normalizeRecurrence(expense.recurrence || "none"),
             recurrenceEnd: this.normalizeDateValue(expense.recurrenceEnd),
             seriesId: expense.seriesId ? String(expense.seriesId) : "",
             generatedFromId,
+            occurrenceDate,
+            excludedDates: this.normalizeDateList(expense.excludedDates),
             isRecurringTemplate: Boolean(expense.isRecurringTemplate),
             isGeneratedRecurring: Boolean(
                 expense.isGeneratedRecurring ||
@@ -365,6 +370,18 @@ export class ExpenseTracker extends BaseExpenseTracker {
 
         if (normalized.isGeneratedRecurring && !normalized.generatedFromId) {
             normalized.isGeneratedRecurring = false;
+        }
+
+        if (normalized.isGeneratedRecurring && !normalized.occurrenceDate) {
+            normalized.occurrenceDate = this.normalizeDateValue(normalized.date);
+        }
+
+        if (!normalized.isGeneratedRecurring) {
+            normalized.occurrenceDate = "";
+        }
+
+        if (!normalized.isRecurringTemplate) {
+            normalized.excludedDates = [];
         }
 
         return normalized;
@@ -494,6 +511,66 @@ export class ExpenseTracker extends BaseExpenseTracker {
         this.renderBudgetOverview();
         this.saveSettingsLastModifiedMs(remoteSettingsMs);
         return true;
+    }
+
+    getOccurrenceDate(expense) {
+        return this.normalizeDateValue(expense?.occurrenceDate || expense?.date || "");
+    }
+
+    hasOccurrenceChanges(originalExpense, updatedExpense) {
+        return (
+            Number(originalExpense.amount) !== Number(updatedExpense.amount) ||
+            String(originalExpense.description || "") !==
+                String(updatedExpense.description || "") ||
+            String(originalExpense.category || "") !==
+                String(updatedExpense.category || "") ||
+            String(originalExpense.date || "") !== String(updatedExpense.date || "") ||
+            String(originalExpense.paidBy || "") !== String(updatedExpense.paidBy || "") ||
+            this.normalizeRecurrence(originalExpense.recurrence || "none") !==
+                this.normalizeRecurrence(updatedExpense.recurrence || "none") ||
+            this.normalizeDateValue(originalExpense.recurrenceEnd) !==
+                this.normalizeDateValue(updatedExpense.recurrenceEnd)
+        );
+    }
+
+    excludeOccurrenceFromTemplate(expense) {
+        const templateId = String(expense?.generatedFromId || "");
+        const occurrenceDate = this.getOccurrenceDate(expense);
+        if (!templateId || !occurrenceDate) {
+            return false;
+        }
+
+        const templateIndex = this.expenses.findIndex(
+            (candidate) =>
+                String(candidate.id) === templateId && candidate.isRecurringTemplate,
+        );
+        if (templateIndex === -1) {
+            return false;
+        }
+
+        const template = this.expenses[templateIndex];
+        if ((template.excludedDates || []).includes(occurrenceDate)) {
+            return false;
+        }
+
+        const lastModifiedMs = Date.now();
+        this.expenses[templateIndex] = this.normalizeExpense({
+            ...template,
+            excludedDates: [...(template.excludedDates || []), occurrenceDate],
+            lastModifiedMs,
+            lastModified: new Date(lastModifiedMs).toISOString(),
+        });
+        return true;
+    }
+
+    detachGeneratedOccurrence(expense) {
+        return this.normalizeExpense({
+            ...expense,
+            seriesId: String(expense.id),
+            generatedFromId: "",
+            occurrenceDate: "",
+            isGeneratedRecurring: false,
+        });
     }
 
     populateRecurrenceSelect(select, selectedValue = "none") {
@@ -772,7 +849,16 @@ export class ExpenseTracker extends BaseExpenseTracker {
             });
         }
 
-        this.expenses[expenseIndex] = updatedExpense;
+        let nextExpense = updatedExpense;
+        if (
+            originalExpense.isGeneratedRecurring &&
+            this.hasOccurrenceChanges(originalExpense, updatedExpense)
+        ) {
+            this.excludeOccurrenceFromTemplate(originalExpense);
+            nextExpense = this.detachGeneratedOccurrence(updatedExpense);
+        }
+
+        this.expenses[expenseIndex] = nextExpense;
         this.cleanupOrphanedRecurringExpenses();
         this.generateRecurringExpenses({ save: false });
         this.saveExpenses();
@@ -848,6 +934,8 @@ export class ExpenseTracker extends BaseExpenseTracker {
             recurrenceEnd,
             seriesId: existingExpense?.seriesId || safeId,
             generatedFromId: existingExpense?.generatedFromId || "",
+            occurrenceDate: existingExpense?.occurrenceDate || "",
+            excludedDates: existingExpense?.excludedDates || [],
             isRecurringTemplate: recurrence !== "none",
             isGeneratedRecurring: Boolean(existingExpense?.isGeneratedRecurring),
         };
@@ -878,6 +966,9 @@ export class ExpenseTracker extends BaseExpenseTracker {
 
         const handleConfirm = () => {
             const idsToDelete = this.collectExpenseIdsForDeletion(targetExpense);
+            if (targetExpense?.isGeneratedRecurring) {
+                this.excludeOccurrenceFromTemplate(targetExpense);
+            }
             if (this.syncManager.isAuthenticated()) {
                 idsToDelete.forEach((id) => this.syncManager.trackDelete(id));
             }
@@ -1024,6 +1115,7 @@ export class ExpenseTracker extends BaseExpenseTracker {
         const seriesEnd = template.recurrenceEnd
             ? this.parseDateOnly(template.recurrenceEnd)
             : null;
+        const excludedDates = new Set(template.excludedDates || []);
         const maxDate =
             seriesEnd && seriesEnd < horizonDate ? seriesEnd : horizonDate;
         let occurrenceDate = this.addRecurrenceStep(startDate, template.recurrence);
@@ -1031,10 +1123,17 @@ export class ExpenseTracker extends BaseExpenseTracker {
 
         while (occurrenceDate && occurrenceDate <= maxDate) {
             const ymd = this.ymdFromDate(occurrenceDate);
+            if (excludedDates.has(ymd)) {
+                occurrenceDate = this.addRecurrenceStep(
+                    occurrenceDate,
+                    template.recurrence,
+                );
+                continue;
+            }
             const exists = this.expenses.some(
                 (expense) =>
                     String(expense.generatedFromId) === String(template.id) &&
-                    expense.date === ymd,
+                    this.getOccurrenceDate(expense) === ymd,
             );
 
             if (!exists) {
@@ -1068,6 +1167,7 @@ export class ExpenseTracker extends BaseExpenseTracker {
             recurrence: "none",
             recurrenceEnd: "",
             generatedFromId: String(template.id),
+            occurrenceDate: date,
             seriesId: template.seriesId || String(template.id),
             isRecurringTemplate: false,
             isGeneratedRecurring: true,
@@ -1124,6 +1224,18 @@ export class ExpenseTracker extends BaseExpenseTracker {
     normalizeDateValue(value) {
         const normalized = String(value || "").trim();
         return /^\d{4}-\d{2}-\d{2}$/.test(normalized) ? normalized : "";
+    }
+
+    normalizeDateList(values) {
+        if (!Array.isArray(values)) {
+            return [];
+        }
+
+        const seen = new Set();
+        return values
+            .map((value) => this.normalizeDateValue(value))
+            .filter((value) => value && !seen.has(value) && seen.add(value))
+            .sort();
     }
 
     updateDashboard() {

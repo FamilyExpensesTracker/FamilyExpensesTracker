@@ -201,20 +201,39 @@ try {
     $clientNowMs = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
     $initialSettingsMs = $clientNowMs + 1000
     $today = Get-Date -Format 'yyyy-MM-dd'
+    $yesterday = (Get-Date).AddDays(-1).ToString('yyyy-MM-dd')
     $syncResponse = Invoke-ApiCgi -ScriptPath (Join-Path $projectRoot 'api/sync.php') -Method 'POST' -Token $token -Payload @{
-        expenses = @(@{
-            id = 'expense-1'
-            amount = 12.5
-            description = 'Milk'
-            category = 'Food'
-            date = $today
-            paidBy = 'Alice'
-            timestamp = [DateTime]::UtcNow.ToString('o')
-            lastModifiedMs = $clientNowMs
-            seriesId = 'series-1'
-            generatedFromId = 'template-1'
-            isGeneratedRecurring = $true
-        })
+        expenses = @(
+            @{
+                id = 'template-1'
+                amount = 12.5
+                description = 'Milk'
+                category = 'Food'
+                date = $yesterday
+                paidBy = 'Alice'
+                timestamp = [DateTime]::UtcNow.ToString('o')
+                lastModifiedMs = ($clientNowMs - 1)
+                recurrence = 'daily'
+                recurrenceEnd = ''
+                seriesId = 'template-1'
+                excludedDates = @('2099-12-31')
+                isRecurringTemplate = $true
+            },
+            @{
+                id = 'expense-1'
+                amount = 12.5
+                description = 'Milk'
+                category = 'Food'
+                date = $today
+                paidBy = 'Alice'
+                timestamp = [DateTime]::UtcNow.ToString('o')
+                lastModifiedMs = $clientNowMs
+                seriesId = 'template-1'
+                generatedFromId = 'template-1'
+                occurrenceDate = $today
+                isGeneratedRecurring = $true
+            }
+        )
         lastSyncTimeMs = $null
         deletedIds = @()
         settings = @{
@@ -294,12 +313,18 @@ try {
         }
     }
     $syncedExpense = $metadataResponse.Json.data.serverChanges | Where-Object { $_.id -eq 'expense-1' } | Select-Object -First 1
+    $syncedTemplate = $metadataResponse.Json.data.serverChanges | Where-Object { $_.id -eq 'template-1' } | Select-Object -First 1
     if (
         $metadataResponse.StatusCode -ne 200 -or
         -not $metadataResponse.Json.success -or
         -not $syncedExpense -or
+        -not $syncedTemplate -or
         -not $syncedExpense.isGeneratedRecurring -or
-        $syncedExpense.generatedFromId -ne 'template-1'
+        $syncedExpense.generatedFromId -ne 'template-1' -or
+        $syncedExpense.occurrenceDate -ne $today -or
+        -not $syncedTemplate.isRecurringTemplate -or
+        $syncedTemplate.excludedDates.Count -ne 1 -or
+        $syncedTemplate.excludedDates[0] -ne '2099-12-31'
     ) {
         throw "generated recurring metadata was not preserved: status=$($metadataResponse.StatusCode), body=$($metadataResponse.RawBody)"
     }

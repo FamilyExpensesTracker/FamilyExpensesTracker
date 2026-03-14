@@ -23,6 +23,15 @@ export class SyncManager extends BaseSyncManager {
             generatedFromId: expense.generatedFromId
                 ? String(expense.generatedFromId)
                 : "",
+            occurrenceDate:
+                typeof expense.occurrenceDate === "string"
+                    ? expense.occurrenceDate
+                    : "",
+            excludedDates: Array.isArray(expense.excludedDates)
+                ? expense.excludedDates.filter(
+                      (value) => typeof value === "string" && value,
+                  )
+                : [],
             isRecurringTemplate: Boolean(expense.isRecurringTemplate),
             isGeneratedRecurring: Boolean(expense.isGeneratedRecurring),
         };

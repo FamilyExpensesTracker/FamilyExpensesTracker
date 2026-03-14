@@ -51,6 +51,31 @@ function sanitizeExpenseId($id) {
     return $id;
 }
 
+function normalizeDateList($values) {
+    if (!is_array($values)) {
+        return [];
+    }
+
+    $seen = [];
+    $normalized = [];
+
+    foreach ($values as $value) {
+        $safeValue = trim((string)$value);
+        if ($safeValue === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $safeValue)) {
+            continue;
+        }
+        if (isset($seen[$safeValue])) {
+            continue;
+        }
+
+        $seen[$safeValue] = true;
+        $normalized[] = $safeValue;
+    }
+
+    sort($normalized, SORT_STRING);
+    return $normalized;
+}
+
 function normalizeExpenseMetadata($expense) {
     $recurrence = strtolower(trim((string)($expense['recurrence'] ?? 'none')));
     $allowedRecurrence = ['none', 'daily', 'weekly', 'monthly', 'yearly'];
@@ -68,6 +93,17 @@ function normalizeExpenseMetadata($expense) {
 
     $seriesId = sanitizeExpenseId($expense['seriesId'] ?? null);
     $generatedFromId = sanitizeExpenseId($expense['generatedFromId'] ?? null);
+    $occurrenceDate = trim((string)($expense['occurrenceDate'] ?? ''));
+    if ($occurrenceDate !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $occurrenceDate)) {
+        $occurrenceDate = '';
+    }
+    if ($occurrenceDate === '') {
+        $occurrenceDate = trim((string)($expense['date'] ?? ''));
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $occurrenceDate)) {
+            $occurrenceDate = '';
+        }
+    }
+    $excludedDates = normalizeDateList($expense['excludedDates'] ?? []);
     $isRecurringTemplate = !empty($expense['isRecurringTemplate']) && $recurrence !== 'none';
     $isGeneratedRecurring =
         !empty($expense['isGeneratedRecurring']) ||
@@ -80,10 +116,14 @@ function normalizeExpenseMetadata($expense) {
     if ($isRecurringTemplate) {
         $generatedFromId = null;
         $isGeneratedRecurring = false;
+        $occurrenceDate = '';
+    } else {
+        $excludedDates = [];
     }
 
     if (!$generatedFromId) {
         $isGeneratedRecurring = false;
+        $occurrenceDate = '';
     }
 
     return [
@@ -91,6 +131,8 @@ function normalizeExpenseMetadata($expense) {
         'recurrenceEnd' => $recurrenceEnd,
         'seriesId' => $seriesId ?: '',
         'generatedFromId' => $generatedFromId ?: '',
+        'occurrenceDate' => $occurrenceDate,
+        'excludedDates' => $excludedDates,
         'isRecurringTemplate' => $isRecurringTemplate,
         'isGeneratedRecurring' => $isGeneratedRecurring,
     ];
@@ -126,6 +168,10 @@ function buildExpenseResponse($row) {
         'recurrenceEnd' => $metadata['recurrenceEnd'],
         'seriesId' => $metadata['seriesId'],
         'generatedFromId' => $metadata['generatedFromId'],
+        'occurrenceDate' => $metadata['isGeneratedRecurring']
+            ? ($metadata['occurrenceDate'] ?: $row['date'])
+            : '',
+        'excludedDates' => $metadata['excludedDates'],
         'isRecurringTemplate' => $metadata['isRecurringTemplate'],
         'isGeneratedRecurring' => $metadata['isGeneratedRecurring'],
     ];
@@ -447,6 +493,8 @@ if ($method === 'POST') {
                             'recurrenceEnd' => $metadata['recurrenceEnd'],
                             'seriesId' => $metadata['seriesId'],
                             'generatedFromId' => $metadata['generatedFromId'],
+                            'occurrenceDate' => $metadata['occurrenceDate'],
+                            'excludedDates' => $metadata['excludedDates'],
                             'isRecurringTemplate' => $metadata['isRecurringTemplate'],
                             'isGeneratedRecurring' => $metadata['isGeneratedRecurring'],
                         ],
