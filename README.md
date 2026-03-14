@@ -260,7 +260,7 @@ The application uses a structured JSON format for data storage:
 ## 🎨 Customization
 
 ### Adding New Categories
-Edit the `index.html` file and add new `<option>` elements:
+Use the in-app Settings modal to add custom categories. They are stored locally and included in sync/export data.
 
 ```html
 <option value="Your Category">🎯 Your Category</option>
@@ -273,7 +273,7 @@ Customize the color scheme in `styles.css`:
 - **Background**: Linear gradient from primary to secondary
 
 ### Adding Languages
-1. Add translations to the `translations` object in `app.js`
+1. Add translations in `modules/translations.js`
 2. Add language option to the settings modal in `index.html`
 3. Include appropriate flag icon from Flag Icons CSS
 
@@ -370,11 +370,9 @@ Prerequisites:
 Run from project root:
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File tests/e2e/run-api-smoke.ps1
-```
 
 Keep generated artifacts for debugging:
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File tests/e2e/run-api-smoke.ps1 -KeepArtifacts
-```
 
 ---

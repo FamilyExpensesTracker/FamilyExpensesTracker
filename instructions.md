@@ -6,8 +6,9 @@ Example subdirectory deployment:
 ```
 /public_html/expense-tracker/
   index.html
-  app.js
+  main.js
   styles.css
+  modules/
   install.php (temporary)
   api/
     auth.php
@@ -18,8 +19,9 @@ Example root deployment:
 ```
 /public_html/
   index.html
-  app.js
+  main.js
   styles.css
+  modules/
   install.php (temporary)
   api/
     auth.php
