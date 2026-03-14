@@ -4,25 +4,22 @@
 require_once __DIR__ . '/lib/MigrationRunner.php';
 
 // Guard: refuse to run if already configured (prevents info leak in production).
-// Append ?upgrade=1 to run pending migrations on an existing install.
 $guardPaths = [dirname(__DIR__) . '/private/config.php', __DIR__ . '/private/config.php'];
 $alreadyConfigured = false;
 foreach ($guardPaths as $gp) {
     if (is_file($gp)) { $alreadyConfigured = true; break; }
 }
-if ($alreadyConfigured && empty($_GET['upgrade'])) {
+if ($alreadyConfigured) {
     http_response_code(403);
     echo '<!DOCTYPE html><html><head><title>Already Installed</title></head><body>'
        . '<h1>Already Installed</h1>'
        . '<p>Delete <code>install.php</code> from your server for security.</p>'
-       . '<p>To run database migrations on an existing install, visit <code>install.php?upgrade=1</code>.</p>'
        . '</body></html>';
     exit;
 }
 
 $errors = [];
 $success = [];
-$isFreshInstall = false;
 
 function ensureDirectory($path) {
     return is_dir($path) || @mkdir($path, 0755, true);
@@ -80,8 +77,6 @@ foreach ($candidatePrivatePaths as $candidate) {
 }
 
 if ($configPath === null) {
-    $isFreshInstall = true;
-
     foreach ($candidatePrivatePaths as $candidate) {
         if (ensureDirectory($candidate)) {
             $privatePath = $candidate;
@@ -228,7 +223,6 @@ if ($privatePath && strpos(str_replace('\\', '/', $privatePath), str_replace('\\
     </div>
 
     <?php if (empty($errors)): ?>
-        <p>Installer mode: <strong><?php echo $isFreshInstall ? 'Fresh install' : 'Upgrade / migration'; ?></strong></p>
         <a class="btn" href="index.html">Open application</a>
     <?php endif; ?>
 </div>

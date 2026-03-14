@@ -2961,3 +2961,179 @@ body {
     border-color: rgba(148, 163, 184, 0.2);
     color: #e2e8f0;
 }
+
+.recurrence-group {
+    position: relative;
+}
+
+.budget-overview-card {
+    margin-bottom: 24px;
+}
+
+.budget-overview-header {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 18px;
+}
+
+.budget-overview-hint,
+.budget-settings-hint,
+.category-empty,
+.budget-empty-state,
+.conflict-modal-description {
+    color: #667085;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.budget-settings-list,
+.budget-overview-list,
+.conflict-list {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.budget-setting-row {
+    align-items: center;
+    display: grid;
+    gap: 12px;
+    grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.budget-setting-name {
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.budget-setting-input-wrap {
+    align-items: center;
+    display: inline-flex;
+    gap: 8px;
+}
+
+.budget-setting-input {
+    max-width: 140px;
+}
+
+.budget-setting-code {
+    color: #667085;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+}
+
+.budget-progress-item {
+    border: 1px solid rgba(102, 112, 133, 0.16);
+    border-radius: 14px;
+    padding: 14px 16px;
+}
+
+.budget-progress-header,
+.budget-progress-meta,
+.conflict-item-header,
+.conflict-column-header,
+.conflict-field {
+    align-items: center;
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.budget-progress-bar {
+    background: rgba(102, 112, 133, 0.12);
+    border-radius: 999px;
+    height: 10px;
+    margin: 10px 0;
+    overflow: hidden;
+}
+
+.budget-progress-fill {
+    background: linear-gradient(90deg, #2f9e44, #74c69d);
+    border-radius: inherit;
+    display: block;
+    height: 100%;
+}
+
+.budget-progress-fill.is-over {
+    background: linear-gradient(90deg, #d9480f, #f76707);
+}
+
+.budget-progress-meta {
+    color: #667085;
+    font-size: 13px;
+}
+
+.conflict-modal-content {
+    max-width: 960px;
+    width: min(960px, calc(100vw - 32px));
+}
+
+.conflict-item {
+    border: 1px solid rgba(102, 112, 133, 0.16);
+    border-radius: 16px;
+    padding: 18px;
+}
+
+.conflict-columns {
+    display: grid;
+    gap: 16px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin-top: 14px;
+}
+
+.conflict-column {
+    border: 1px solid rgba(102, 112, 133, 0.14);
+    border-radius: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 14px;
+}
+
+.conflict-column-header input {
+    margin-left: auto;
+}
+
+.conflict-field {
+    border-top: 1px solid rgba(102, 112, 133, 0.12);
+    font-size: 13px;
+    padding-top: 10px;
+}
+
+.conflict-field span {
+    color: #667085;
+}
+
+[data-theme="dark"] .budget-progress-item,
+[data-theme="dark"] .conflict-item,
+[data-theme="dark"] .conflict-column {
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .budget-progress-bar {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="dark"] .budget-overview-hint,
+[data-theme="dark"] .budget-settings-hint,
+[data-theme="dark"] .category-empty,
+[data-theme="dark"] .budget-empty-state,
+[data-theme="dark"] .budget-setting-code,
+[data-theme="dark"] .budget-progress-meta,
+[data-theme="dark"] .conflict-modal-description,
+[data-theme="dark"] .conflict-field span {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+@media (max-width: 720px) {
+    .budget-setting-row,
+    .conflict-columns {
+        grid-template-columns: 1fr;
+    }
+
+    .budget-setting-input-wrap {
+        justify-content: space-between;
+    }
+}

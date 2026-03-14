@@ -1,10 +1,16 @@
-const CACHE_NAME = 'fet-v1';
+const CACHE_NAME = 'fet-v2';
 
 const CORE_ASSETS = [
   './index.html',
-  './app.js',
+  './main.js',
   './styles.css',
-  './manifest.json'
+  './manifest.json',
+  './modules/base-expense-tracker.js',
+  './modules/base-sync-manager.js',
+  './modules/base-translations.js',
+  './modules/expense-tracker.js',
+  './modules/sync-manager.js',
+  './modules/translations.js'
 ];
 
 self.addEventListener('install', (event) => {
